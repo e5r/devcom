@@ -23,3 +23,5 @@ class Registry extends dev.DevCom {
         dev.logger.verbose('Running [REGISTRY] DevCom...');
     }
 }
+
+module.exports = new Registry();
