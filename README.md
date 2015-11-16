@@ -1,4 +1,4 @@
 DEVCOM
 =======
 
-E5R Development Commands Oficial
+E5R Development Commands Oficial Registry
