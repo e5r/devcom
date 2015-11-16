@@ -20,7 +20,11 @@ class Registry extends dev.DevCom {
      * @param {Array} args - Argument list
      */
     run(toolInstance, args) {
+        dev.logger.verbose('********************************************');
         dev.logger.verbose('Running [REGISTRY] DevCom...');
+        dev.logger.verbose('toolInstance:', toolInstance);
+        dev.logger.verbose('args:', args);
+        dev.logger.verbose('********************************************');
     }
 }
 
