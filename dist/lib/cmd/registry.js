@@ -11,7 +11,7 @@ let dev = require('dev');
  * 
  * Manage registry of E5R Tools for Development Team
  */
-class Registry extends dev.DevCom {
+class Registry /*extends dev.DevCom*/ {
     
     /**
      * Run the `registry` devcom
@@ -24,6 +24,11 @@ class Registry extends dev.DevCom {
         dev.logger.verbose('Running [REGISTRY] DevCom...');
         dev.logger.verbose('toolInstance:', toolInstance);
         dev.logger.verbose('args:', args);
+        
+        let parseParams = (params) => {
+            
+        }
+        
         dev.logger.verbose('********************************************');
     }
 }
@@ -43,4 +48,30 @@ DEVCOM padrões:
     * remove [name] -> Remove um registro da lista
     * update [url for registry.json] -> Faz um merge do `registry.json` atual com o baixado da url
     Todos os registros no remoto serão adicionados ou substituirão os existentes localmente
+*/
+
+// Ideia
+/*
+// let cmd = lib.require('cmd://registry');
+//
+// cmd.run(toolInstance, [
+//     'install',
+//     '--resources', 'bin,doc',
+//     '--scope', TOOL_DEFAULT_SCOPE
+// ]);
+//
+// Lib.require => Usa lib.getResources('DevComName') pra baixar arquivos da Web
+//                depois carrega.
+//
+// Registry.js {
+        let command = args.splice(0, 1);
+        let params = lib.parseParams(args);
+        
+        if(command === 'install') {
+            lib.getResources(params.resources, params.scope);
+            return;
+        }
+        
+        ...
+// }
 */
