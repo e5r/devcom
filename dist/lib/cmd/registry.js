@@ -43,3 +43,18 @@ class Registry extends dev.DevCom {
 }
 
 module.exports = new Registry();
+
+/*
+DEVCOM padrões:
+
+- help -> builtin
+    Exibe o arquivo /help/devcom/command.html no navegador
+    ou, /help/devcom/command.man/ no prompt
+
+- registry -> builtin
+    * list -> Lista os nomes dos registros em `registry.json`
+    * show [name] -> Exibe as informações do registro X em `registry.json`
+    * remove [name] -> Remove um registro da lista
+    * update [url for registry.json] -> Faz um merge do `registry.json` atual com o baixado da url
+    Todos os registros no remoto serão adicionados ou substituirão os existentes localmente
+*/
