@@ -3,7 +3,9 @@
 
 /* global process, __filename, __dirname */
 
+console.log('require(\'dev\') start...');
 var dev = require('dev');
+console.log('require(\'dev\') finish...:', dev);
 
 /**
  * DevCom `registry` command
