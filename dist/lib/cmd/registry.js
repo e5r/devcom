@@ -3,7 +3,19 @@
 
 /* global process, __filename, __dirname */
 
-let dev = require('dev');
+//let dev = require('dev');
+/**
+ * @mock - require('dev)
+ */
+let dev = {
+    DevCom: class Mock {},
+    logger: {
+        verbose: console.log
+    }
+}
+
+const REGEX_PARAM_KEYVALUE_1 = '^[\-]{2}([a-zA-Z0-9\-]+)[\=]{1}([^\=]+)$';
+const REGEX_PARAM_KEYVALUE_2 = '^[\-]{2}([a-zA-Z0-9\-]+)$';
 
 /**
  * DevCom `registry` command
@@ -26,14 +38,35 @@ class Registry extends dev.DevCom {
         dev.logger.verbose('args:', args);
         
         let parseParams = (params) => {
+            if(!Array.isArray(params)) {
+                throw dev.createError('Invalid @params type. Must be an array.');
+            }
             
+            let regexKeyValue1 = new RegExp(REGEX_PARAM_KEYVALUE_1),
+                regexKeyValue2 = new RegExp(REGEX_PARAM_KEYVALUE_2);
+            
+            params.map((value, index, array) => {
+                dev.logger.verbose('Value:', value, 'Index:', index);
+                dev.logger.verbose('KeyValue1:', regexKeyValue1.exec(value));
+                dev.logger.verbose('KeyValue2:', regexKeyValue2.exec(value));
+            })
         }
+        
+        parseParams(args);
         
         dev.logger.verbose('********************************************');
     }
 }
 
-module.exports = new Registry();
+let devcom = new Registry();
+
+devcom.run(null, [
+    'install',
+    '--resources=bin,doc',
+    '--scope', 'TOOL_DEFAULT_SCOPE'
+]);
+
+module.exports = devcom;
 
 /*
 DEVCOM padrões:
