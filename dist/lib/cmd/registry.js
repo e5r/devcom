@@ -11,7 +11,7 @@ let dev = require('dev');
  * 
  * Manage registry of E5R Tools for Development Team
  */
-class Registry /*extends dev.DevCom*/ {
+class Registry extends dev.DevCom {
     
     /**
      * Run the `registry` devcom
