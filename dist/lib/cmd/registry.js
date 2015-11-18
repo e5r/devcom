@@ -3,9 +3,7 @@
 
 /* global process, __filename, __dirname */
 
-console.log('>>> Running registry.js');
 let dev = require('dev');
-console.log('>>> require("dev"):', dev);
 /**
  * @mock - require('dev)
  */
@@ -22,7 +20,6 @@ console.log('>>> require("dev"):', dev);
  * 
  * Manage registry of E5R Tools for Development Team
  */
-console.log('>>> Defining Registry class, dev.DevCom:', dev.DevCom);
 class Registry extends dev.DevCom {
     
     /**
@@ -40,7 +37,6 @@ class Registry extends dev.DevCom {
     }
 }
 
-console.log('>>> new Registry()');
 let devcom = new Registry();
 
 // devcom.run(null, {
@@ -49,7 +45,6 @@ let devcom = new Registry();
 //     scope: 'TOOL_DEFAULT_SCOPE'
 // });
 
-console.log('>>> module.exports = devcom:', devcom);
 module.exports = devcom;
 
 /*
