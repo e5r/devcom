@@ -3,19 +3,16 @@
 
 /* global process, __filename, __dirname */
 
-//let dev = require('dev');
+let dev = require('dev');
 /**
  * @mock - require('dev)
  */
-let dev = {
-    DevCom: class Mock {},
-    logger: {
-        verbose: console.log
-    }
-}
-
-const REGEX_PARAM_KEYVALUE_1 = '^[\-]{2}([a-zA-Z0-9\-]+)[\=]{1}([^\=]+)$';
-const REGEX_PARAM_KEYVALUE_2 = '^[\-]{2}([a-zA-Z0-9\-]+)$';
+// let dev = {
+//     DevCom: class Mock {},
+//     logger: {
+//         verbose: console.log
+//     }
+// }
 
 /**
  * DevCom `registry` command
@@ -28,43 +25,25 @@ class Registry extends dev.DevCom {
     /**
      * Run the `registry` devcom
      * 
-     * @param {DevToolCommandLine} toolInstance - Instance of DevToolCommandLine
-     * @param {Array} args - Argument list
+     * @param {object} devTool - Instance of DevToolCommandLine
+     * @param {object} options - Options for arguments of command
      */
-    run(toolInstance, args) {
+    run(devTool, options) {
         dev.logger.verbose('********************************************');
         dev.logger.verbose('Running [REGISTRY] DevCom...');
-        dev.logger.verbose('toolInstance:', toolInstance);
-        dev.logger.verbose('args:', args);
-        
-        let parseParams = (params) => {
-            if(!Array.isArray(params)) {
-                throw dev.createError('Invalid @params type. Must be an array.');
-            }
-            
-            let regexKeyValue1 = new RegExp(REGEX_PARAM_KEYVALUE_1),
-                regexKeyValue2 = new RegExp(REGEX_PARAM_KEYVALUE_2);
-            
-            params.map((value, index, array) => {
-                dev.logger.verbose('Value:', value, 'Index:', index);
-                dev.logger.verbose('KeyValue1:', regexKeyValue1.exec(value));
-                dev.logger.verbose('KeyValue2:', regexKeyValue2.exec(value));
-            })
-        }
-        
-        parseParams(args);
-        
+        dev.logger.verbose('toolInstance:', devTool);
+        dev.logger.verbose('options:', options);
         dev.logger.verbose('********************************************');
     }
 }
 
 let devcom = new Registry();
 
-devcom.run(null, [
-    'install',
-    '--resources=bin,doc',
-    '--scope', 'TOOL_DEFAULT_SCOPE'
-]);
+// devcom.run(null, {
+//     args: ['install'],
+//     resources: 'bin,doc',
+//     scope: 'TOOL_DEFAULT_SCOPE'
+// });
 
 module.exports = devcom;
 
