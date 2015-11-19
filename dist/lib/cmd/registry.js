@@ -5,6 +5,7 @@
 
 let _fs = require('fs'),
     _path = require('path'),
+    _url = require('url'),
     _os = require('os');
 
 /** @constant {string} */
@@ -25,7 +26,8 @@ const REGISTRY_LOCAL_LOCKFILE = 'registry.' + MAGIC_REGISTRY_LOCKNAME + '.lock.j
  */
 const TOOL_DEVFOLDER = '.dev';
 
-let _rootPath = _path.resolve(_os.homedir(), TOOL_DEVFOLDER);
+let _rootPath = _path.resolve(_os.homedir(), TOOL_DEVFOLDER),
+    _childProcess = require('child_process');
 
 class DevComMock {}
 class DevToolMock {}
@@ -79,6 +81,110 @@ let dev = {
         }
 
         return url.concat(url.lastIndexOf('/') !== url.length - 1 ? '/' : '');
+    },
+    download: (url, path) => {
+        dev.logger.verbose('Downloading "' + url + '"...');
+
+        let urlOptions = _url.parse(url),
+            protocol = urlOptions.protocol.split(':')[0],
+            wget = require(protocol).request;
+    
+        let file;
+
+        let req = wget(urlOptions, function (res) {
+            if (res.statusCode !== 200) {
+                throw dev.createError('Response status code: ' + res.statusCode + ' ' + res.statusMessage + ' >>> ' + url);
+            }
+
+            file = _fs.createWriteStream(path);
+
+            file.on('finish', function () {
+                dev.logger.verbose('Download successfuly!');
+                file.close(/* callback */);
+            });
+
+            res.pipe(file);
+        });
+
+        req.on('error', function (error) {
+            if (file) {
+                file.close(/* callback */);
+            }
+            if (_fs.existsSync(path)) {
+                _fs.unlink(path);
+                // callback
+            }
+            throw dev.createError('Download error:', error);
+        });
+    
+        /**
+            * @todo: Add timeout
+            */
+        // req.setTimeout(12000, function () {
+        //     req.abort();
+        // });
+    
+        req.end();
+    },
+
+    /**
+        * Download a web file with process blocked
+        * 
+        * @param {string} url - Url for download
+        * @param {string} path - Path to save file
+        */
+    downloadSync: (url, path) => {
+        let jsEngine = process.execPath,
+            jsEngineArgv = [],
+            jsScript = module.filename,
+            exec = _childProcess.spawnSync;
+
+        /* @hack: No crash node debug mode */
+        process.execArgv.map((value) => {
+            if (!value.startsWith('--debug-brk') && !value.startsWith('--nolazy')) {
+                jsEngineArgv.push(value);
+            }
+        });
+
+        let child = exec(jsEngine, jsEngineArgv.concat([
+            jsScript,
+            'wget',
+            url,
+            path
+        ]));
+
+        dev.printf(child.output[1].toString());
+
+        if (child.status !== 0) {
+            let errorMessage;
+            
+            // Searching error message output
+            {
+                let errorLines = child.output[2].toString().split(_os.EOL),
+                    errorRegex = new RegExp('^Error: {1}(.+)$');
+
+                for (let l in errorLines) {
+                    let regexResult = errorRegex.exec(errorLines[l]);
+                    if (regexResult) {
+                        errorMessage = regexResult[1];
+                        break;
+                    }
+                };
+            }
+            
+            if (errorMessage) {
+                throw dev.createError(errorMessage);
+            }
+            
+            dev.printf(child.output[2].toString());
+            
+            throw dev.createError(''
+                + 'Download failed to "' + url + '"' + _os.EOL
+                + '  PID: ' + child.pid + _os.EOL
+                + '  Command: ' + child.args.join(' ') + _os.EOL
+                + '  Exit Code: ' + child.status
+                );
+        }
     }
 }
 
@@ -242,7 +348,7 @@ class Registry extends dev.DevCom {
 
         if (1 > entries.length) {
             dev.printf('Registry is empty!');
-            dev.printf('Usage: dev registry install [URL] to add entries for registry');
+            dev.printf('Usage: dev registry add [URL] -> to add entries for registry');
             return;
         }
 
@@ -354,8 +460,60 @@ class Registry extends dev.DevCom {
         dev.printf('Registry entry "' + entryName + '" successfully removed.');
     }
     
-    updateAction(options) {
-        
+    /**
+     * Add a new entries for `registry.json`.
+     * Replace a exist entries.
+     * 
+     * @param {object} options - Command options
+     */
+    addAction(options) {
+        if (1 > options.args.length) {
+            throw dev.createError('Registry add usage: dev add [url]');
+        }
+
+        let url = _url.parse(options.args[0]),
+            urlValidProtocol = -1 < ['http', 'https'].indexOf(url.protocol.split(':')[0]),
+            urlValidPath = url.path.endsWith(REGISTRY_FILE);
+
+        if (!url.host || !urlValidProtocol || !urlValidPath) {
+            throw dev.createError('Invalid URL value: ' + options.args[0]);
+        }
+
+        let _crypto = require('crypto'),
+            tmpFilePath = _path.resolve(_os.tmpdir(), 'tmp-registry-' + _crypto.randomBytes(10).readUInt32LE(0) + '.json');
+
+        if (_fs.existsSync(tmpFilePath)) {
+            _fs.unlinkSync(tmpFilePath);
+        }
+
+        dev.downloadSync(url.href, tmpFilePath);
+
+        if (!_fs.existsSync(tmpFilePath)) {
+            throw dev.createError('Registry "' + url.href + '" not found.');
+        }
+
+        let registry = readRegistry(),
+            registryUpdate = require(tmpFilePath);
+
+        if (typeof registryUpdate !== 'object') {
+            throw dev.createError('Invalid content type of web registry.');
+        }
+
+        for (let p in registryUpdate) {
+            let entry = registryUpdate[p];
+
+            if (typeof entry !== 'object') {
+                throw dev.createError('Invalid content type of web registry.');
+            }
+
+            registry[p] = entry;
+        }
+
+        _fs.unlinkSync(tmpFilePath);
+
+        writeRegistry(registry);
+
+        dev.printf('Registry entries updated!');
     }
     
     installAction(options) {
@@ -363,10 +521,18 @@ class Registry extends dev.DevCom {
     }
 }
 
+let _args = process.argv.slice(2);
+
+console.log('RUNNING...', _args);
+
+if(_args.length === 3 && _args[0] === 'wget') {
+    dev.download(_args[1], _args[2]);
+}else{
+
 let devcom = new Registry();
 
 devcom.run(new DevToolMock() , {
-    args: ['remove', 'user-entry'],
+    args: ['add', 'https://raw.githubusercontent.com/e5r/devcom/develop/dist/registry.json'],
     //resources: 'bin,doc',
     //scope: 'TOOL_DEFAULT_SCOPE'
 });
@@ -375,6 +541,7 @@ devcom.run(new DevToolMock() , {
 // $> dev registry show e5r-devcom >> {args:['show', 'e5r-devcom']}
 
 module.exports = devcom;
+}
 
 /*
 DEVCOM padrões:
