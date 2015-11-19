@@ -185,6 +185,36 @@ let dev = {
                 + '  Exit Code: ' + child.status
                 );
         }
+    },
+
+    makeCamelCaseName: (name) => {
+        if (typeof name !== 'string') {
+            throw dev.createError('Param name is not a string');
+        }
+    
+        let buffer = [],
+            regex = new RegExp('^[a-zA-Z0-9-_]+$'),
+            nextUpper = false;
+    
+        if (!regex.test(name)) {
+            throw dev.createError('Invalid name for makeCamelCaseName.');
+        }
+    
+        for (let c = 0; c < name.length; c++) {
+            let char = name.charAt(c);
+            if (char === '-' && 0 < buffer.length) {
+                nextUpper = true;
+                continue;
+            }
+            if (nextUpper) {
+                buffer.push(char.toUpperCase());
+                nextUpper = false;
+                continue;
+            }
+            buffer.push(char.toLowerCase());
+        }
+    
+        return buffer.join('');
     }
 }
 
@@ -306,7 +336,7 @@ class Registry extends dev.DevCom {
             return;
         }
         
-        let actionName = options.args.shift(),
+        let actionName = dev.makeCamelCaseName(options.args.shift()),
             actionFn = this[actionName + 'Action'];
         
         if (typeof actionFn !== 'function') {
@@ -516,29 +546,47 @@ class Registry extends dev.DevCom {
         dev.printf('Registry entries updated!');
     }
     
-    installAction(options) {
+    /**
+     * Download binary files to local cache
+     */
+    getBinariesAction(options) {
+        if (options.scope) {
+            throw dev.createError('Registry add usage: dev add [url]');
+        }
         
+        dev.logger.verbose('get-binaries action...');
     }
 }
 
 let _args = process.argv.slice(2);
 
-console.log('RUNNING...', _args);
-
-if(_args.length === 3 && _args[0] === 'wget') {
+if (_args.length === 3 && _args[0] === 'wget') {
     dev.download(_args[1], _args[2]);
-}else{
+} else {
 
-let devcom = new Registry();
+    let devcom = new Registry();
 
-devcom.run(new DevToolMock() , {
-    args: ['add', 'https://raw.githubusercontent.com/e5r/devcom/develop/dist/registry.json'],
-    //resources: 'bin,doc',
-    //scope: 'TOOL_DEFAULT_SCOPE'
-});
+    devcom.run(new DevToolMock(), {
+        args: ['get-binaries'],
+        scope: 'e5r-devcom',
+        //scope: 'TOOL_DEFAULT_SCOPE'
+    });
+}
 
-// $> dev registry list            >> {args:['list']}
-// $> dev registry show e5r-devcom >> {args:['show', 'e5r-devcom']}
+// $> dev registry list
+// >> {args:['list']}
+
+// $> dev registry show e5r-devcom
+// >> {args:['show', 'e5r-devcom']}
+
+// $> dev registry remove user-entry
+// >> {args:['remove', 'user-entry']}
+
+// $> dev registry get-binaries --scope=e5r-devcom
+// >> {args:['get-binaries'], scope:'e5r-devcom'}
+
+/** @todo: Implements get-tools
+// $> dev registry get-tools --scope=e5r-devcom
 
 module.exports = devcom;
 }
