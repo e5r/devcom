@@ -104,6 +104,22 @@ function readRegistry() {
 }
 
 /**
+ * Write the registry file
+ * 
+ * @param {object} registry - Data to write `registry.json` file
+ */
+function writeRegistry(registry) {
+    if (typeof registry !== 'object') {
+        throw dev.createError('Invalid content type of registry.');
+    }
+
+    let registryPath = _path.resolve(dev.devHome.root, REGISTRY_FILE),
+        registryContent = JSON.stringify(registry, null, 4);
+
+    _fs.writeFileSync(registryPath, registryContent, 'utf8');
+}
+
+/**
  * Read the lock file registry
  * 
  * @param {string} entryName - Name of entry in `registry.json`
@@ -243,7 +259,7 @@ class Registry extends dev.DevCom {
      */
     showAction(options) {
         if (1 > options.args.length) {
-            throw dev.createError('Registry show usage: dev registry show [entry]');;
+            throw dev.createError('Registry show usage: dev registry show [entry]');
         }
 
         let entryName = options.args[0],
@@ -282,7 +298,7 @@ class Registry extends dev.DevCom {
         // URL entry
         if (registryType === 'url') {
             let url = dev.makeRegistryUrl(entry);
-            
+
             dev.printf('URL Registry [' + entryName + ']');
             dev.printf('  Registry URL:', url);
 
@@ -298,7 +314,7 @@ class Registry extends dev.DevCom {
 
         if (_fs.existsSync(pathLockFile)) {
             let counts = countLockFiles(entryName);
-            
+
             dev.printf('  Lock file counts:');
             dev.printf('    - Binary:        %d', counts.bin);
             dev.printf('    - Documentation: %d', counts.doc);
@@ -309,8 +325,35 @@ class Registry extends dev.DevCom {
         }
     }
     
+    /**
+     * Remove an entry of registry
+     * 
+     * @param {object} options - Command options
+     */
     removeAction(options) {
+        if (1 > options.args.length) {
+            throw dev.createError('Registry remove usage: dev registry remove [entry]');
+        }
+
+        let entryName = options.args[0],
+            registry = readRegistry(),
+            found = false;
+
+        for (let e in registry) {
+            if (e === entryName) {
+                delete registry[e];
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            throw dev.createError('Registry entry "' + entryName + '" not found.');
+        }
+
+        writeRegistry(registry);
         
+        dev.printf('Registry entry "' + entryName + '" successfully removed.');
     }
     
     updateAction(options) {
@@ -325,7 +368,7 @@ class Registry extends dev.DevCom {
 let devcom = new Registry();
 
 devcom.run(new DevToolMock() , {
-    args: ['list'],
+    args: ['remove', 'user-entry'],
     //resources: 'bin,doc',
     //scope: 'TOOL_DEFAULT_SCOPE'
 });
