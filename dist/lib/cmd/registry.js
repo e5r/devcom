@@ -212,10 +212,8 @@ class Registry extends dev.DevCom {
     
     /**
      * Show usage information for DevCom
-     * 
-     * @param {string} action - Action name or null
      */
-    usage(action) {
+    usage() {
         dev.printf('Usage: dev registry [action] [options]');
         dev.printf();
         dev.printf('  Actions:');
