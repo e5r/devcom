@@ -104,18 +104,59 @@ function readRegistry() {
 }
 
 /**
+ * Read the lock file registry
+ * 
+ * @param {string} entryName - Name of entry in `registry.json`
+ * @return {object} Content of `registry.{ENTRY}.lock.json` file
+ */
+function readLockFileRegistry(entryName) {
+    if (typeof entryName !== 'string') {
+        throw dev.createError('Invalid entryName. Must be an string.');
+    }
+
+    let lockFileName = REGISTRY_LOCAL_LOCKFILE.replace(MAGIC_REGISTRY_LOCKNAME, entryName),
+        lockFilePath = _path.resolve(dev.devHome.root, lockFileName);
+
+    if (!_fs.existsSync(lockFilePath)) {
+        throw dev.createError('Lock file registry "' + lockFileName + '" not found!');
+    }
+
+    let lockRegistry = require(lockFilePath);
+
+    if (!Array.isArray(lockRegistry)) {
+        throw dev.createError('Invalid lock content. Must be an array of file paths.');
+    }
+
+    return lockRegistry; 
+}
+
+/**
  * Read the registry lock file and count map file by type
  * 
- * @param {string} path - Path to lock file
+ * @param {string} entryName - Name of entry in `registry.json`
  * @return {object} Summary of counts
  */
-function countLockFiles(path) {
-    let counts = {
-        bin: 0,
-        doc: 0,
-        cmd: 0
-    };
-    
+function countLockFiles(entryName) {
+    let counts = { bin: 0, doc: 0, lib: 0, cmd: 0 };
+
+    readLockFileRegistry(entryName).map((value) => {
+        if (value.startsWith('lib/cmd/')) {
+            return ++counts.cmd;
+        }
+
+        if (value.startsWith('lib/')) {
+            return ++counts.lib;
+        }
+
+        if (value.startsWith('doc/')) {
+            return ++counts.doc;
+        }
+
+        if (value.startsWith('bin/')) {
+            return ++counts.bin;
+        }
+    });
+
     return counts;
 }
 
@@ -241,7 +282,8 @@ class Registry extends dev.DevCom {
         // URL entry
         if (registryType === 'url') {
             let url = dev.makeRegistryUrl(entry);
-            dev.printf('URL Registry');
+            
+            dev.printf('URL Registry [' + entryName + ']');
             dev.printf('  Registry URL:', url);
 
             found = true;
@@ -255,8 +297,13 @@ class Registry extends dev.DevCom {
         dev.printf('  Local lock file:', pathLockFile);
 
         if (_fs.existsSync(pathLockFile)) {
-            /** @todo: Implements! */
+            let counts = countLockFiles(entryName);
+            
             dev.printf('  Lock file counts:');
+            dev.printf('    - Binary:        %d', counts.bin);
+            dev.printf('    - Documentation: %d', counts.doc);
+            dev.printf('    - Library:       %d', counts.lib);
+            dev.printf('    - DevCom:        %d', counts.cmd);
         } else {
             dev.printf('  Lock file counts: *** NOT PRESENT ***');
         }
@@ -278,7 +325,7 @@ class Registry extends dev.DevCom {
 let devcom = new Registry();
 
 devcom.run(new DevToolMock() , {
-    args: ['show', 'e5r-devcom'],
+    args: ['list'],
     //resources: 'bin,doc',
     //scope: 'TOOL_DEFAULT_SCOPE'
 });
