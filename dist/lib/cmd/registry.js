@@ -20,203 +20,7 @@ const MAGIC_REGISTRY_LOCKNAME = '{name}';
 /** @constant {string} */
 const REGISTRY_LOCAL_LOCKFILE = 'registry.' + MAGIC_REGISTRY_LOCKNAME + '.lock.json';
 
-//let dev = require('dev');
-/**
- * @mock - require('dev)
- */
-const TOOL_DEVFOLDER = '.dev';
-
-let _rootPath = _path.resolve(_os.homedir(), TOOL_DEVFOLDER),
-    _childProcess = require('child_process');
-
-class DevComMock {}
-class DevToolMock {}
-
-let dev = {
-    DevCom: DevComMock,
-    DevTool: DevToolMock,
-    devHome: {
-        root: _rootPath,
-        tools: _path.join(_rootPath, 'tools'),
-        bin: _path.join(_rootPath, 'bin'),
-        lib: _path.join(_rootPath, 'lib'),
-        cmd: _path.join(_rootPath, 'lib', 'cmd'),
-        doc: _path.join(_rootPath, 'doc')
-    },
-    createError: (msg) => {
-        return new Error(msg);
-    },
-    printf: console.log,
-    logger: {
-        verbose: console.log
-    },
-    makeRegistryUrl: (entry) => {
-        if (typeof entry !== 'object') {
-            throw dev.createError('Invalid content type of registry.');
-        }
-
-        let registryType = entry.type.toLowerCase();
-
-        // GitHub type
-        if (registryType === 'github' && entry.owner && entry.repository && entry.branch) {
-            return 'https://raw.githubusercontent.com/{owner}/{repository}/{branch}/{path}'
-                .replace('{owner}', entry.owner)
-                .replace('{repository}', entry.repository)
-                .replace('{branch}', entry.branch)
-                .replace('{path}', entry.path ? entry.path : '');
-        }
-    
-        // URL type
-        if(registryType === 'url' && entry.url){
-            return '{base}/{path}'
-                .replace('{base}', entry.url)
-                .replace('{path}', entry.path ? entry.path : '');
-        }
-        
-        throw dev.createError('Invalid registry entry to generate URL: ' + JSON.stringify(entry, null, 2));
-    },
-    normalizeUrl: (url) => {
-        if (typeof url !== 'string') {
-            throw dev.createError('Invalid url value. Must be an string.');
-        }
-
-        return url.concat(url.lastIndexOf('/') !== url.length - 1 ? '/' : '');
-    },
-    download: (url, path) => {
-        dev.logger.verbose('Downloading "' + url + '"...');
-
-        let urlOptions = _url.parse(url),
-            protocol = urlOptions.protocol.split(':')[0],
-            wget = require(protocol).request;
-    
-        let file;
-
-        let req = wget(urlOptions, function (res) {
-            if (res.statusCode !== 200) {
-                throw dev.createError('Response status code: ' + res.statusCode + ' ' + res.statusMessage + ' >>> ' + url);
-            }
-
-            file = _fs.createWriteStream(path);
-
-            file.on('finish', function () {
-                dev.logger.verbose('Download successfuly!');
-                file.close(/* callback */);
-            });
-
-            res.pipe(file);
-        });
-
-        req.on('error', function (error) {
-            if (file) {
-                file.close(/* callback */);
-            }
-            if (_fs.existsSync(path)) {
-                _fs.unlink(path);
-                // callback
-            }
-            throw dev.createError('Download error:', error);
-        });
-    
-        /**
-            * @todo: Add timeout
-            */
-        // req.setTimeout(12000, function () {
-        //     req.abort();
-        // });
-    
-        req.end();
-    },
-
-    /**
-        * Download a web file with process blocked
-        * 
-        * @param {string} url - Url for download
-        * @param {string} path - Path to save file
-        */
-    downloadSync: (url, path) => {
-        let jsEngine = process.execPath,
-            jsEngineArgv = [],
-            jsScript = module.filename,
-            exec = _childProcess.spawnSync;
-
-        /* @hack: No crash node debug mode */
-        process.execArgv.map((value) => {
-            if (!value.startsWith('--debug-brk') && !value.startsWith('--nolazy')) {
-                jsEngineArgv.push(value);
-            }
-        });
-
-        let child = exec(jsEngine, jsEngineArgv.concat([
-            jsScript,
-            'wget',
-            url,
-            path
-        ]));
-
-        dev.printf(child.output[1].toString());
-
-        if (child.status !== 0) {
-            let errorMessage;
-            
-            // Searching error message output
-            {
-                let errorLines = child.output[2].toString().split(_os.EOL),
-                    errorRegex = new RegExp('^Error: {1}(.+)$');
-
-                for (let l in errorLines) {
-                    let regexResult = errorRegex.exec(errorLines[l]);
-                    if (regexResult) {
-                        errorMessage = regexResult[1];
-                        break;
-                    }
-                };
-            }
-            
-            if (errorMessage) {
-                throw dev.createError(errorMessage);
-            }
-            
-            dev.printf(child.output[2].toString());
-            
-            throw dev.createError(''
-                + 'Download failed to "' + url + '"' + _os.EOL
-                + '  PID: ' + child.pid + _os.EOL
-                + '  Command: ' + child.args.join(' ') + _os.EOL
-                + '  Exit Code: ' + child.status
-                );
-        }
-    },
-
-    makeCamelCaseName: (name) => {
-        if (typeof name !== 'string') {
-            throw dev.createError('Param name is not a string');
-        }
-    
-        let buffer = [],
-            regex = new RegExp('^[a-zA-Z0-9-_]+$'),
-            nextUpper = false;
-    
-        if (!regex.test(name)) {
-            throw dev.createError('Invalid name for makeCamelCaseName.');
-        }
-    
-        for (let c = 0; c < name.length; c++) {
-            let char = name.charAt(c);
-            if (char === '-' && 0 < buffer.length) {
-                nextUpper = true;
-                continue;
-            }
-            if (nextUpper) {
-                buffer.push(char.toUpperCase());
-                nextUpper = false;
-                continue;
-            }
-            buffer.push(char.toLowerCase());
-        }
-    
-        return buffer.join('');
-    }
-}
+let dev = require('dev');
 
 /**
  * Read the registry file
@@ -498,7 +302,7 @@ class Registry extends dev.DevCom {
      */
     addAction(options) {
         if (1 > options.args.length) {
-            throw dev.createError('Registry add usage: dev add [url]');
+            throw dev.createError('Registry add usage: dev registry add [url]');
         }
 
         let url = _url.parse(options.args[0]),
@@ -550,8 +354,8 @@ class Registry extends dev.DevCom {
      * Download binary files to local cache
      */
     getBinariesAction(options) {
-        if (options.scope) {
-            throw dev.createError('Registry add usage: dev add [url]');
+        if (typeof options.scope !== 'string') {
+            throw dev.createError('Registry get-binaries usage: dev registry get-binaries --scope={scope-name}');
         }
         
         dev.logger.verbose('get-binaries action...');
@@ -566,7 +370,7 @@ if (_args.length === 3 && _args[0] === 'wget') {
 
     let devcom = new Registry();
 
-    devcom.run(new DevToolMock(), {
+    devcom.run(new dev.DevTool(), {
         args: ['get-binaries'],
         scope: 'e5r-devcom',
         //scope: 'TOOL_DEFAULT_SCOPE'
