@@ -20,7 +20,7 @@ const MAGIC_REGISTRY_LOCKNAME = '{name}';
 /** @constant {string} */
 const REGISTRY_LOCAL_LOCKFILE = 'registry.' + MAGIC_REGISTRY_LOCKNAME + '.lock.json';
 
-let dev = require('dev');
+let dev = require('e5r-dev');
 
 /**
  * Read the registry file

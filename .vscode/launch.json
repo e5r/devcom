@@ -5,7 +5,7 @@
 			"name": "dev registry",
 			"type": "node",
 			"request": "launch",
-			"program": "src/lib/registry.js",
+			"program": "src/lib/cmd/registry.js",
 			"stopOnEntry": false,
 			"args": [],
 			"cwd": ".",
