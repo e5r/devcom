@@ -1,0 +1,19 @@
+{
+  "name": "e5r-devcom",
+  "version": "0.1.0",
+  "description": "E5R Development Commands Oficial Registry",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/e5r/devcom.git"
+  },
+  "author": "E5R Development Team",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/e5r/devcom/issues"
+  },
+  "homepage": "https://github.com/e5r/devcom#readme",
+  "devDependencies": {
+    "e5r-dev": "^0.1.0",
+    "gulp": "^3.9.0"
+  }
+}

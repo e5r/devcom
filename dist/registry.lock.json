@@ -1,0 +1,5 @@
+[
+    "bin/dev.cmd",
+    "bin/dev.ps1",
+    "lib/cmd/registry.js"
+]
