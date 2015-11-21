@@ -6,7 +6,8 @@
 let _fs = require('fs'),
     _path = require('path'),
     _url = require('url'),
-    _os = require('os');
+    _os = require('os'),
+    dev = require('e5r-dev');
 
 /** @constant {string} */
 const REGISTRY_FILE = 'registry.json';
@@ -19,29 +20,6 @@ const MAGIC_REGISTRY_LOCKNAME = '{name}';
 
 /** @constant {string} */
 const REGISTRY_LOCAL_LOCKFILE = 'registry.' + MAGIC_REGISTRY_LOCKNAME + '.lock.json';
-
-let dev = require('e5r-dev');
-
-/**
- * Read the registry file
- * 
- * @return {object} Content of `registry.json` file
- */
-function readRegistry() {
-    let registryPath = _path.resolve(dev.devHome.root, REGISTRY_FILE);
-
-    if (!_fs.existsSync(registryPath)) {
-        throw dev.createError('Registry file not found!');;
-    }
-
-    let registry = require(registryPath);
-    
-    if (typeof registry !== 'object') {
-        throw dev.createError('Invalid content type of registry file.');
-    }
-    
-    return registry; 
-}
 
 /**
  * Write the registry file
@@ -83,7 +61,7 @@ function readLockFileRegistry(entryName) {
         throw dev.createError('Invalid lock content. Must be an array of file paths.');
     }
 
-    return lockRegistry; 
+    return lockRegistry;
 }
 
 /**
@@ -122,15 +100,23 @@ function countLockFiles(entryName) {
  * @param {array} lockFiles - List of lock files
  * @return {array}
  */
-function getBinaryLockFiles(lockFiles){
+function getBinaryLockFiles(lockFiles) {
     if (!Array.isArray(lockFiles)) {
         throw dev.createError('Invalid lockFiles. Must be an array.');
     }
 
-    let buffer = [];
+    let buffer = [],
+        binExt = {
+            "darwin": [],
+            "freebsd": [],
+            "linux": ['.sh'],
+            "sunos": [],
+            "win32": ['.cmd', '.bat', '.ps1']
+        }[_os.platform()];
 
     lockFiles.map((path) => {
-        if (path.startsWith('bin/')) {
+        let p = _path.parse(path);
+        if (p.dir === 'bin' && -1 < binExt.indexOf(p.ext)) {
             buffer.push(path);
         }
     });
@@ -156,19 +142,19 @@ class Registry extends dev.DevCom {
         if ((process.env['DEVCOM_MODE'] || '').toUpperCase() !== 'DEVELOPMENT' && !(devTool instanceof dev.DevTool)) {
             throw dev.createError('Registry should be performed only via DEV command.');
         }
-        
+
         if (!options || !Array.isArray(options.args) || 1 > options.args.length) {
             this.usage();
             return;
         }
-        
+
         let actionName = dev.makeCamelCaseName(options.args.shift()),
             actionFn = this[actionName + 'Action'];
-        
+
         if (typeof actionFn !== 'function') {
             throw dev.createError('Unknown action "' + actionName + '" for registry DevCom.');
         }
-        
+
         actionFn(options);
     }
     
@@ -179,14 +165,14 @@ class Registry extends dev.DevCom {
         dev.printf('Usage: dev registry [action] [options]');
         dev.printf();
         dev.printf('  Actions:');
-        dev.printf('    list      - List all registry entries');
-        dev.printf('    show      - Show details of a registry entry');
-        dev.printf('    remove    - Remove a registry entry');
-        dev.printf('    update    - Update information of a registry entry');
-        dev.printf('    install   - Add new entries for registry');
+        dev.printf('    list         - List all registry entries');
+        dev.printf('    show         - Show details of a registry entry');
+        dev.printf('    remove       - Remove a registry entry');
+        dev.printf('    add          - Add new entries for registry');
+        dev.printf('    get-binaries - Download and install binaries');
         dev.printf();
         dev.printf('  Options:');
-        dev.printf('    ?         - ???');
+        dev.printf('    --scope      - Entry name in registry.json');
     }
     
     /**
@@ -195,7 +181,7 @@ class Registry extends dev.DevCom {
      * @param {object} options - Command options
      */
     listAction(options) {
-        let registry = readRegistry(),
+        let registry = dev.getRegistry(),
             entries = [];
 
         for (let property in registry) {
@@ -223,7 +209,7 @@ class Registry extends dev.DevCom {
         }
 
         let entryName = options.args[0],
-            registry = readRegistry(),
+            registry = dev.getRegistry(),
             entry;
 
         for (let e in registry) {
@@ -296,7 +282,7 @@ class Registry extends dev.DevCom {
         }
 
         let entryName = options.args[0],
-            registry = readRegistry(),
+            registry = dev.getRegistry(),
             found = false;
 
         for (let e in registry) {
@@ -312,7 +298,7 @@ class Registry extends dev.DevCom {
         }
 
         writeRegistry(registry);
-        
+
         dev.printf('Registry entry "' + entryName + '" successfully removed.');
     }
     
@@ -348,7 +334,7 @@ class Registry extends dev.DevCom {
             throw dev.createError('Registry "' + url.href + '" not found.');
         }
 
-        let registry = readRegistry(),
+        let registry = dev.getRegistry(),
             registryUpdate = require(tmpFilePath);
 
         if (typeof registryUpdate !== 'object') {
@@ -373,93 +359,50 @@ class Registry extends dev.DevCom {
     }
     
     /**
-     * Download binary files to local cache
+     * Download and install binaries
+     * 
+     * @param {object} options - Command options
      */
     getBinariesAction(options) {
-        dev.logger.verbose('get-binaries action...');
-        
-        dev.logger.verbose(dev.getRegistryLock);
-        
         let registry = dev.getRegistry(),
-            lock = dev.getRegistryLock('e5r-devcom');
-        
-        dev.logger.verbose(registry);
-        dev.logger.verbose(lock);
-        
-        dev.logger.verbose('finish!');
+            scopes = Object.getOwnPropertyNames(registry),
+            binaryBuffer = [];
+
+        for (let s in scopes) {
+            let scopeName = scopes[s],
+                scope = registry[scopeName];
+
+            if (!options.scope || options.scope === scopeName) {
+                let lock = dev.getRegistryLock(scopeName),
+                    lockBinary = getBinaryLockFiles(lock),
+                    scopeUrl = dev.makeRegistryUrl(scope);
+
+                lockBinary.map((sufix) => {
+                    let url = dev.normalizeUrl(scopeUrl) + sufix;
+                    binaryBuffer.push({ url: url, path: sufix });
+                });
+
+                continue;
+            }
+
+            dev.logger.debug('Skeep scope "' + scope + '"...');
+        }
+
+        if (1 > binaryBuffer.length) {
+            dev.printf('No binary found!');
+            return;
+        }
+
+        binaryBuffer.map((binary) => {
+            if (binary.path.startsWith('bin/')) {
+                binary.path = binary.path.substring('/bin'.length);
+            }
+            binary.path = _path.resolve(dev.devHome.bin, binary.path);
+            dev.downloadSync(binary.url, binary.path);
+        });
+
+        dev.printf('%d binary successfully installed.', binaryBuffer.length);
     }
 }
 
-let _args = process.argv.slice(2);
-
-if (_args.length === 3 && _args[0] === 'wget') {
-    dev.download(_args[1], _args[2]);
-} else {
-
-    let devcom = new Registry();
-
-    devcom.run(null, {
-        args: ['get-binaries'],
-        scope: 'e5r-devcom',
-        //scope: 'TOOL_DEFAULT_SCOPE'
-    });
-}
-
-// $> dev registry list
-// >> {args:['list']}
-
-// $> dev registry show e5r-devcom
-// >> {args:['show', 'e5r-devcom']}
-
-// $> dev registry remove user-entry
-// >> {args:['remove', 'user-entry']}
-
-// $> dev registry get-binaries --scope=e5r-devcom
-// >> {args:['get-binaries'], scope:'e5r-devcom'}
-
-/** @todo: Implements get-tools
-// $> dev registry get-tools --scope=e5r-devcom
-
-module.exports = devcom;
-}
-
-/*
-DEVCOM padrões:
-
-- help -> builtin
-    Exibe o arquivo /help/devcom/command.html no navegador
-    ou, /help/devcom/command.man/ no prompt
-
-- registry -> builtin
-    * list -> Lista os nomes dos registros em `registry.json`
-    * show [name] -> Exibe as informações do registro X em `registry.json`
-    * remove [name] -> Remove um registro da lista
-    * update [url for registry.json] -> Faz um merge do `registry.json` atual com o baixado da url
-    Todos os registros no remoto serão adicionados ou substituirão os existentes localmente
-*/
-
-// Ideia
-/*
-// let cmd = lib.require('cmd://registry');
-//
-// cmd.run(toolInstance, [
-//     'install',
-//     '--resources', 'bin,doc',
-//     '--scope', TOOL_DEFAULT_SCOPE
-// ]);
-//
-// Lib.require => Usa lib.getResources('DevComName') pra baixar arquivos da Web
-//                depois carrega.
-//
-// Registry.js {
-        let command = args.splice(0, 1);
-        let params = lib.parseParams(args);
-        
-        if(command === 'install') {
-            lib.getResources(params.resources, params.scope);
-            return;
-        }
-        
-        ...
-// }
-*/
+module.exports = new Registry();
