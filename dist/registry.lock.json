@@ -1,5 +1,6 @@
 [
     "bin/dev.cmd",
     "bin/dev.ps1",
+    "bin/dev.sh",
     "lib/cmd/registry.js"
 ]
