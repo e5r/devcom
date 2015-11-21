@@ -13,9 +13,10 @@ for($count = 0; $count -lt $args.length; $count++) {
 }
 
 $jsengine = [io.path]::getfullpath("$psscriptroot\..\tools\jsengine.exe")
-$jsoptions = "--use_strict --caller=powershell"
-$devscript = [io.path]::getfullpath("$psscriptroot\..\tools\dev.js")
+$jsoptions = "--use_strict"
+$devscript = [io.path]::getfullpath("$psscriptroot\..\lib\node_modules\e5r-dev.js")
 $postfile = [io.path]::getfullpath("$psscriptroot\..\dev-envvars.ps1")
+$env:E5RDEV_CALLER = "powershell"
 
 if(!(test-path "$jsengine")) {
     "`"$jsengine`" not found!" | Write-Host
