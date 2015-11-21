@@ -13,6 +13,7 @@
   },
   "homepage": "https://github.com/e5r/devcom#readme",
   "devDependencies": {
+    "del": "^2.1.0",
     "e5r-dev": "^0.1.0",
     "gulp": "^3.9.0"
   }

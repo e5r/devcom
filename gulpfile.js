@@ -3,9 +3,14 @@
 
 /* global process, __filename, __dirname */
 
-var gulp = require('gulp');
+var gulp = require('gulp'),
+    del = require('del');
 
-gulp.task('dist', function(){
+gulp.task('clean', function () {
+    return del('dist/*');
+});
+
+gulp.task('dist', ['clean'], function () {
     gulp.src('src/**/*')
         .pipe(gulp.dest('dist'));
 });
