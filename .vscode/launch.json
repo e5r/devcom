@@ -16,7 +16,8 @@
 			],
 			"env": {
 				"NODE_ENV": "development",
-                "NODE_DEBUG": "E5RDEV"
+                "NODE_DEBUG": "E5RDEV",
+                "DEVCOM_MODE": "DEVELOPMENT"
 			},
 			"externalConsole": false,
 			"sourceMaps": false,

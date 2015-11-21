@@ -117,6 +117,28 @@ function countLockFiles(entryName) {
 }
 
 /**
+ * Return only binary lock files
+ * 
+ * @param {array} lockFiles - List of lock files
+ * @return {array}
+ */
+function getBinaryLockFiles(lockFiles){
+    if (!Array.isArray(lockFiles)) {
+        throw dev.createError('Invalid lockFiles. Must be an array.');
+    }
+
+    let buffer = [];
+
+    lockFiles.map((path) => {
+        if (path.startsWith('bin/')) {
+            buffer.push(path);
+        }
+    });
+
+    return buffer;
+}
+
+/**
  * DevCom `registry` command
  * @class
  * 
@@ -131,7 +153,7 @@ class Registry extends dev.DevCom {
      * @param {object} options - Options for arguments of command
      */
     run(devTool, options) {
-        if (!(devTool instanceof dev.DevTool)) {
+        if ((process.env['DEVCOM_MODE'] || '').toUpperCase() !== 'DEVELOPMENT' && !(devTool instanceof dev.DevTool)) {
             throw dev.createError('Registry should be performed only via DEV command.');
         }
         
@@ -354,11 +376,17 @@ class Registry extends dev.DevCom {
      * Download binary files to local cache
      */
     getBinariesAction(options) {
-        if (typeof options.scope !== 'string') {
-            throw dev.createError('Registry get-binaries usage: dev registry get-binaries --scope={scope-name}');
-        }
-        
         dev.logger.verbose('get-binaries action...');
+        
+        dev.logger.verbose(dev.getRegistryLock);
+        
+        let registry = dev.getRegistry(),
+            lock = dev.getRegistryLock('e5r-devcom');
+        
+        dev.logger.verbose(registry);
+        dev.logger.verbose(lock);
+        
+        dev.logger.verbose('finish!');
     }
 }
 
@@ -370,7 +398,7 @@ if (_args.length === 3 && _args[0] === 'wget') {
 
     let devcom = new Registry();
 
-    devcom.run(new dev.DevTool(), {
+    devcom.run(null, {
         args: ['get-binaries'],
         scope: 'e5r-devcom',
         //scope: 'TOOL_DEFAULT_SCOPE'
