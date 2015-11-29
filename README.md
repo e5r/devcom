@@ -3,9 +3,16 @@ DEVCOM
 
 E5R Development Commands Oficial Registry
 
-## Build
+## Windows build
 
 ```
 npm install
-gulp dist
+make dist
+```
+
+## Unix build
+
+```
+npm install
+./make dist
 ```
