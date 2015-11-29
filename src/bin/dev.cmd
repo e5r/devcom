@@ -4,7 +4,7 @@
 @echo off
 
 set JSENGINE=%~dp0..\tools\jsengine.exe
-set JSOPTIONS = --use_strict
+set JSOPTIONS=
 set DEVSCRIPT=%~dp0..\lib\node_modules\e5r-dev.js
 set POSTFILE=%~dp0..\tools\dev-envvars.cmd
 set E5RDEV_CALLER=cmd
