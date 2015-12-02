@@ -14,7 +14,10 @@ if not exist "%JSENGINE%" (
     goto :end
 )
 
-"%JSENGINE%" "%DEVSCRIPT%" %* --shell=cmd
+:: @HACK: Update environment after install
+if "%1" neq "update-devenvvars" (
+    "%JSENGINE%" "%DEVSCRIPT%" %* --shell=cmd
+)
 
 if exist %POSTFILE% (
     call %POSTFILE%
