@@ -2,5 +2,6 @@
     "bin/dev.cmd",
     "bin/dev.ps1",
     "bin/dev.sh",
+    "lib/cmd/env.js",
     "lib/cmd/registry.js"
 ]
