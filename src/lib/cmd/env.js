@@ -30,9 +30,13 @@ class Environment extends dev.DevCom {
             return;
         }
 
-        let environment = options.args.shift();
-
-        dev.printf('You perform environment', environment);
+        let envName = options.args.shift();
+        
+        dev.printf('You perform environment', envName);
+        
+        let env = dev.require('lib://env/' + envName);
+        
+        dev.printf('#env:', JSON.stringify(env));
     }
     
     /**
