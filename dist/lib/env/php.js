@@ -5,7 +5,13 @@
 "use strict";
 
 let dev = require('e5r-dev'),
-    _os = require('os');
+    _os = require('os'),
+    _fs = require('fs'),
+    _url = require('url'),
+    _path = require('path');
+
+/** @constant {string} */
+const ENVIRONMENT_DIRECTORY = 'environment';
 
 /**
  * @todo: Implements no supported platforms.
@@ -20,7 +26,7 @@ const SUPPORTED_PLATFORMS = [
 
 /** @constant {array} */
 const LAST_VERSIONS = [
-    "7,7.0 => 7.0.3",
+    "latest,7,7.0 => 7.0.3",
     "5,5.6 => 5.6.18",
     "5.5 => 5.5.32",
     "5.4 => 5.4.45"
@@ -30,55 +36,49 @@ const LAST_VERSIONS = [
 /** @todo: Auto make a JSON file from http://windows.php.net/downloads/releases */
 const WINDOWS_METADATA = {
     "base_download_url": "http://windows.php.net/downloads/releases/",
-    "archive_download_url": "http://windows.php.net/downloads/releases/archives/",
+    "archive_download_url": "http://windows.php.net/downloads/releases/archives",
     "versions": [
         {
             "version": "7.0.3",
-            "nts": "true",
+            "nts": true,
             "vc": "14",
-            "x64": "true",
-            "x86": "true",
-            "is_archive": "false"
+            "arch": ["x64", "x86"],
+            "is_archive": false
         },
         {
             "version": "7.0.2",
-            "nts": "true",
+            "nts": true,
             "vc": "14",
-            "x64": "true",
-            "x86": "true",
-            "is_archive": "true"
+            "arch": ["x64", "x86"],
+            "is_archive": true
         },
         {
             "version": "7.0.1",
-            "nts": "true",
+            "nts": true,
             "vc": "14",
-            "x64": "true",
-            "x86": "true",
-            "is_archive": "true"
+            "arch": ["x64", "x86"],
+            "is_archive": true
         },
         {
             "version": "5.6.18",
-            "nts": "true",
+            "nts": true,
             "vc": "11",
-            "x64": "true",
-            "x86": "true",
-            "is_archive": "false"
+            "arch": ["x64", "x86"],
+            "is_archive": false
         },
         {
             "version": "5.5.32",
-            "nts": "true",
+            "nts": true,
             "vc": "11",
-            "x64": "true",
-            "x86": "true",
-            "is_archive": "false"
+            "arch": ["x64", "x86"],
+            "is_archive": false
         },
         {
             "version": "5.4.45",
-            "nts": "true",
+            "nts": true,
             "vc": "9",
-            "x64": "false",
-            "x86": "true",
-            "is_archive": "false"
+            "arch": ["x86"],
+            "is_archive": false
         }
     ]
 };
@@ -108,7 +108,7 @@ class PhpEnvironmentTool {
 
         for (let index in LAST_VERSIONS) {
             let version_parts = LAST_VERSIONS[index].split('=>'),
-                version_alias = (version_parts[0] || '').trim(),
+                version_alias = (version_parts[0] || '').trim().split(','),
                 version_value = (version_parts[1] || '').trim();
             if (-1 < version_alias.indexOf(version)) return version_value;
         }
@@ -116,8 +116,85 @@ class PhpEnvironmentTool {
         return null
     }
     
+    downloadPackageFile(versionMetadata, options){
+        let ntsAvailable = !!versionMetadata.nts,
+            ntsRequired =  !!options.nts,
+            arch = (options.arch ? options.arch : dev.arch).toLowerCase();
+        
+        if (0 > versionMetadata.arch.indexOf(arch)) {
+            throw dev.createError('PHP not available for "' + arch + '" architecture.');
+        }
+        
+        if (ntsRequired && !ntsAvailable) {
+            throw dev.createError('PHP version '
+                + versionMetadata.version
+                + ' not available for "Non Thread Safe" mode.')
+        }
+        
+        let fileName = this.makePackageFileName(versionMetadata, options, ntsRequired),
+            fileUrl = this.makePackageUrl(versionMetadata, fileName),
+            filePath = this.makePackagePath(fileName),
+            envPath = this.getEnvironmentPath();
+        
+        dev.printf('#fileName:', fileName);
+        dev.printf('#url:', fileUrl);
+        dev.printf('#path:', filePath);
+        dev.printf('> METADATA:', JSON.stringify(versionMetadata, null, 4));
+        dev.printf('> OPTIONS:', JSON.stringify(options, null, 4));
+        dev.printf('>>', !!versionMetadata.nts, '->', !!options.nts);
+        
+        try {
+            if (!_fs.statSync(envPath).isDirectory()) {
+                throw dev.createError('Path "' + envPath + '" already exist and not a directory!');
+            }
+        } catch (e) {
+            /** @todo: Make all directory */
+            _fs.mkdirSync(envPath);
+        }
+        
+        dev.downloadSync(fileUrl, filePath);
+        
+        if (!_fs.statSync(filePath).isFile()) {
+            throw dev.createError('Error on download from ' + fileUrl);
+        }
+        
+        throw dev.createError('PhpEnvironmentTool->downloadPackageFile() not implemented!');
+    }
+    
+    getEnvironmentPath() {
+        return _path.join(dev.devHome.root, ENVIRONMENT_DIRECTORY, 'php');
+    }
+
+    makePackagePath(fileName) {
+        return _path.join(this.getEnvironmentPath(), fileName);
+    }
+
+    makePackageFileName(versionMetadata, options, ntsRequired) {
+        throw dev.createError('PhpEnvironmentTool->makePackageFileName() not implemented!');
+    }
+    
+    makePackageUrl(versionMetadata, packageFileName) {
+        throw dev.createError('PhpEnvironmentTool->makePackageUrl() not implemented!');
+    }
+    
     getVersionMetadata(version) {
         throw dev.createError('PhpEnvironmentTool->getVersionMetadata() not implemented!');
+    }
+    
+    ensuresDirectoryVersion(version) {
+        throw dev.createError('PhpEnvironmentTool->ensuresDirectoryVersion() not implemented!');
+    }
+    
+    destroyPackageFile(filePath){
+        throw dev.createError('PhpEnvironmentTool->destroyPackageFile() not implemented!');
+    }
+
+    unpackFile(version, downloadedFile) {
+        throw dev.createError('PhpEnvironmentTool->unpackFile() not implemented!');
+    }
+
+    rollbackVersion(version) {
+        throw dev.createError('PhpEnvironmentTool->rollbackVersion() not implemented!');
     }
 }
 
@@ -127,6 +204,44 @@ class PhpEnvironmentTool {
  */
 class PhpEnvironmentToolWin32 extends PhpEnvironmentTool {
     
+    /**
+     * Load metadata version from WINDOWS_METADATA
+     */
+    getVersionMetadata(version) {
+        for (let index in WINDOWS_METADATA.versions) {
+            let metadata = WINDOWS_METADATA.versions[index];
+            if (metadata.version === version) {
+                return metadata;
+            }
+        }
+        throw dev.createError('Metadata not found for version ' + version + '.');
+    }
+    
+    /**
+     * Make a download filename
+     */
+    makePackageFileName(versionMetadata, options, ntsRequired) {
+        let fileName = 'php-{version}{nts}-Win32-VC{vc}-{arch}.zip'
+            .replace('{version}', versionMetadata.version)
+            .replace('{nts}', ntsRequired ? '-nts' : '')
+            .replace('{vc}', versionMetadata.vc)
+            .replace('{arch}', options.arch ? options.arch : dev.arch);
+
+        return fileName;
+    }
+    
+    /**
+     * Make a download url
+     */
+    makePackageUrl(versionMetadata, packageFileName) {
+        let baseUrl = versionMetadata.is_archive
+            ? WINDOWS_METADATA.archive_download_url
+            : WINDOWS_METADATA.base_download_url;
+        baseUrl += baseUrl.length - 1 !== baseUrl.lastIndexOf('/')
+            ? '/'
+            : '';
+        return _url.resolve(baseUrl, packageFileName);
+    }
 }
 
 /**
@@ -184,11 +299,29 @@ class PhpEnvironment {
      * @param {object} options
      */
     install(options) {
-        dev.printf('Installing PHP...');
-
-        dev.printf('#php.install():', JSON.stringify(options, null, 4));
         let version = this.ensuresVersion(options);
-        dev.printf('  version:', version);
+        
+        if (!version && options.version) {
+            throw dev.createError('Version ' + options.version +' not found or invalid formated!');
+        }
+
+        if (!version) {
+            throw dev.createError('Parameter @version is required');
+        }
+        
+        let versionMetadata = this._toolset.getVersionMetadata(version);
+        let packageFile = this._toolset.downloadPackageFile(versionMetadata, options);
+        
+        try {
+            this._toolset.ensuresDirectoryVersion(version);
+            this._toolset.unpackFile(version, packageFile);
+            this._toolset.destroyPackageFile()
+        } catch (error) {
+            this._toolset.rollbackVersion(version);
+            throw error;
+        }
+        
+        dev.printf('PHP version ' + version + ' installed successfuly!')
     }
 // 
 //     uninstall(options) {
