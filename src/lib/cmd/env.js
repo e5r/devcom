@@ -6,6 +6,42 @@
 
 let dev = require('e5r-dev');
 
+/** @constant {object} */
+const ALIAS = {
+    'install': {
+        'alias': ['i', 'in'],
+        'doc': 'Install a new version'
+    },
+    'uninstall': {
+        'alias': ['u', 'un'],
+        'doc': 'Uninstall a version'
+    },
+    'list': {
+        'alias': ['l', 'li'],
+        'doc': 'List all installed versions'
+    },
+    'activate': {
+        'alias': ['a', 'ac'],
+        'doc': 'Activate a version to use in shell'
+    },
+    'deactivate': {
+        'alias': ['d', 'de'],
+        'doc': 'Deactivate a version'
+    }
+};
+
+/**
+ * Ensures that 'action' is an expected name.
+ * 
+ * @param {string} action - Name or alias of action
+ */
+function ensureAction(action) {
+    for (let name in ALIAS) {
+        if (name === action) return action;
+        if (-1 < ALIAS[name].alias.indexOf(action)) return name;
+    }
+}
+
 /**
  * DevCom `env` command
  * @class
@@ -25,18 +61,29 @@ class Environment extends dev.DevCom {
             throw dev.createError('Env should be performed only via DEV command.');
         }
 
-        if (!options || !Array.isArray(options.args) || 1 > options.args.length) {
+        if (!options || !Array.isArray(options.args) || 2 > options.args.length) {
             this.usage();
             return;
         }
 
-        let envName = options.args.shift();
+        let env = options.args.shift(),
+            action = ensureAction(options.args.shift());
+            
+        if (!action) {
+            this.usage();
+            return;
+        }
         
-        dev.printf('You perform environment', envName);
+        let envLib = dev.require('lib://env/' + env),
+            actionFn = envLib[action];
         
-        let env = dev.require('lib://env/' + envName);
+        if (typeof (actionFn) != 'function') {
+            throw dev.createError('Environment '
+                + env.toUpperCase() + ' does not support the '
+                + action.toUpperCase() + ' action.');
+        }
         
-        dev.printf('#env:', JSON.stringify(env));
+        actionFn.bind(envLib)(options);
     }
     
     /**
@@ -45,8 +92,18 @@ class Environment extends dev.DevCom {
     usage() {
         dev.printf('Usage: dev env <name> <action> [options]');
         dev.printf();
-        dev.printf('  Options:');
-        dev.printf('    -v, --version    - Version of environment');
+        dev.printf('Actions:');
+
+        for (let name in ALIAS) {
+            let space = '                 ';
+            let printName = name + space.substring(name.length, space.length - 1);
+            dev.printf('  ' + printName, '-', ALIAS[name].doc);
+        }
+
+        dev.printf();
+        dev.printf('Options:');
+        dev.printf('  -v, --version    - Version of environment');
+        dev.printf();
     }
 }
 
