@@ -133,8 +133,7 @@ class PhpEnvironmentTool {
         
         let fileName = this.makePackageFileName(versionMetadata, options, ntsRequired),
             fileUrl = this.makePackageUrl(versionMetadata, fileName),
-            filePath = this.makePackagePath(fileName),
-            envPath = this.getEnvironmentPath();
+            filePath = this.makePackagePath(fileName);
         
         dev.printf('#fileName:', fileName);
         dev.printf('#url:', fileUrl);
@@ -143,20 +142,13 @@ class PhpEnvironmentTool {
         dev.printf('> OPTIONS:', JSON.stringify(options, null, 4));
         dev.printf('>>', !!versionMetadata.nts, '->', !!options.nts);
         
-        try {
-            if (!_fs.statSync(envPath).isDirectory()) {
-                throw dev.createError('Path "' + envPath + '" already exist and not a directory!');
-            }
-        } catch (e) {
-            /** @todo: Make all directory */
-            _fs.mkdirSync(envPath);
-        }
-        
         dev.downloadSync(fileUrl, filePath);
         
         if (!_fs.statSync(filePath).isFile()) {
             throw dev.createError('Error on download from ' + fileUrl);
         }
+        
+        
         
         throw dev.createError('PhpEnvironmentTool->downloadPackageFile() not implemented!');
     }
