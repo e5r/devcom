@@ -5,8 +5,14 @@
 
 var gulp = require('gulp'),
     fs = require('fs'),
+    os = require('os'),
+    path = require('path'),
     del = require('del'),
     glob = require('glob');
+
+var E5R_DIR = '.dev';
+var E5R_BIN_DIR = path.join(os.homedir(), E5R_DIR, 'bin');
+var E5R_LIB_DIR = path.join(os.homedir(), E5R_DIR, 'lib');
 
 gulp.task('clean', function () {
     return del('dist/*');
@@ -30,4 +36,18 @@ gulp.task('lock-map', function () {
 gulp.task('dist', ['clean', 'lock-map'], function () {
     gulp.src('src/**/*')
         .pipe(gulp.dest('dist'));
+});
+
+gulp.task('install', [], function () {
+    var binFilter = '*.sh';
+
+    if (os.platform() == 'win32') {
+        binFilter = '*.{cmd,ps1}';
+    }
+
+    gulp.src('src/bin/' + binFilter)
+        .pipe(gulp.dest(E5R_BIN_DIR));
+
+    gulp.src('src/lib/**/*')
+        .pipe(gulp.dest(E5R_LIB_DIR));
 });
