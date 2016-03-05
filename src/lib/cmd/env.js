@@ -66,8 +66,8 @@ class Environment extends dev.DevCom {
             return;
         }
 
-        let env = options.args.shift(),
-            action = ensureAction(options.args.shift());
+        let action = ensureAction(options.args.shift()),
+            env = options.args.shift();
             
         if (!action) {
             this.usage();
@@ -90,7 +90,7 @@ class Environment extends dev.DevCom {
      * Show usage information for DevCom
      */
     usage() {
-        dev.printf('Usage: dev env <name> <action> [options]');
+        dev.printf('Usage: dev env <action> <name> [options]');
         dev.printf();
         dev.printf('Actions:');
 
