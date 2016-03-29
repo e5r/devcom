@@ -132,7 +132,7 @@ function getBinaryLockFiles(lockFiles) {
  * Manage registry of E5R Tools for Development Team
  */
 class Registry extends dev.DevCom {
-    
+
     /**
      * Run the `registry` devcom
      * 
@@ -158,7 +158,7 @@ class Registry extends dev.DevCom {
 
         actionFn(options);
     }
-    
+
     /**
      * Show usage information for DevCom
      */
@@ -175,7 +175,7 @@ class Registry extends dev.DevCom {
         dev.printf('  Options:');
         dev.printf('    --scope      - Entry name in registry.json');
     }
-    
+
     /**
      * List all registry entries
      * 
@@ -198,7 +198,7 @@ class Registry extends dev.DevCom {
         dev.printf('Registry entries:');
         dev.printf('  + ' + entries.join(_os.EOL + '  + '));
     }
-    
+
     /**
      * Show details of a registry entry
      * 
@@ -229,7 +229,7 @@ class Registry extends dev.DevCom {
             urlLockFile = dev.normalizeUrl(dev.makeRegistryUrl(entry)).concat(REGISTRY_LOCKFILE),
             lockFileName = REGISTRY_LOCAL_LOCKFILE.replace(MAGIC_REGISTRY_LOCKNAME, entryName),
             pathLockFile = _path.resolve(dev.devHome.root, lockFileName);
-         
+
         // GitHub entry
         if (registryType === 'github') {
             let urlOwner = 'https://github.com/{owner}'.replace('{owner}', entry.owner),
@@ -241,7 +241,7 @@ class Registry extends dev.DevCom {
 
             found = true;
         }
-        
+
         // URL entry
         if (registryType === 'url') {
             let url = dev.makeRegistryUrl(entry);
@@ -271,7 +271,7 @@ class Registry extends dev.DevCom {
             dev.printf('  Lock file counts: *** NOT PRESENT ***');
         }
     }
-    
+
     /**
      * Remove an entry of registry
      * 
@@ -302,7 +302,7 @@ class Registry extends dev.DevCom {
 
         dev.printf('Registry entry "' + entryName + '" successfully removed.');
     }
-    
+
     /**
      * Add a new entries for `registry.json`.
      * Replace a exist entries.
@@ -358,7 +358,7 @@ class Registry extends dev.DevCom {
 
         dev.printf('Registry entries updated!');
     }
-    
+
     /**
      * Download and install binaries
      * 
@@ -398,8 +398,17 @@ class Registry extends dev.DevCom {
             if (binary.path.startsWith('bin/')) {
                 binary.path = binary.path.substring('/bin'.length);
             }
+
             binary.path = _path.resolve(dev.devHome.bin, binary.path);
+            
+            // Convert `file.sh` to `file`
+            let extIdx = binary.path.lastIndexOf('.sh');
+            if (-1 < extIdx) binary.path = binary.path.slice(0, extIdx);
+
             dev.downloadSync(binary.url, binary.path);
+            
+            // Set executable flag for *nix
+            if (_os.platform() !== 'win32') _fs.chmodSync(binary.path, '750');
         });
 
         dev.printf('%d binary successfully installed.', binaryBuffer.length);
