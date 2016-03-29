@@ -15,7 +15,7 @@ if [ ! -f ${jsengine} ]; then
 fi
 
 # @HACK: Update environment after install
-if "${1}" != "update-devenvvars"; then
+if [ ! "${1}" = "update-devenvvars" ]; then
     ${jsengine} "${devscript}" ${*} --shell=sh
 fi
 
