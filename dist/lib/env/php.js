@@ -113,7 +113,7 @@ const WINDOWS_METADATA = {
  * Throw exception if method if for a specific platform
  */
 class PhpEnvironmentTool {
-    
+
     /**
      * Get a last version corresponding to a given version
      * 
@@ -293,7 +293,7 @@ class PhpEnvironmentTool {
             }
         } catch (_) { /* quiet */ }
     }
-    
+
     /**
      * Make a packed file name from metadata
      * 
@@ -335,7 +335,7 @@ class PhpEnvironmentTool {
     getVersionMetadata(version) {
         throw dev.createError('PhpEnvironmentTool->getVersionMetadata() not implemented!');
     }
-    
+
     /**
      * Post install steps
      * 
@@ -343,8 +343,17 @@ class PhpEnvironmentTool {
      * 
      * @param {string} version
      */
-    postInstall(version){
+    postInstall(version) {
         throw dev.createError('PhpEnvironmentTool->postInstall() not implemented!');
+    }
+
+    /**
+     * Update a metadata
+     * 
+     * @note: Implemented only derived classes
+     */
+    updateMetadata() {
+        throw dev.createError('PhpEnvironmentTool->updateMetadata() not implemented!');
     }
 }
 
@@ -355,7 +364,7 @@ class PhpEnvironmentTool {
  * @todo: Move to a separated file
  */
 class PhpEnvironmentToolWin32 extends PhpEnvironmentTool {
-    
+
     /**
      * Get a version metadata from version string
      * 
@@ -372,7 +381,7 @@ class PhpEnvironmentToolWin32 extends PhpEnvironmentTool {
         }
         throw dev.createError('Metadata not found for version ' + version + '.');
     }
-    
+
     /**
      * Make a packed file name from metadata
      * 
@@ -391,7 +400,7 @@ class PhpEnvironmentToolWin32 extends PhpEnvironmentTool {
 
         return fileName;
     }
-    
+
     /**
      * Make a packed file url from metadata
      * 
@@ -409,6 +418,138 @@ class PhpEnvironmentToolWin32 extends PhpEnvironmentTool {
             : '';
         return _url.resolve(baseUrl, packageFileName);
     }
+
+    /**
+     * Update a metadata
+     * 
+     * Read HTML from http://windows.php.net and compiles the information in a local
+     * cache file valid for 1 day.
+     */
+    updateMetadata() {
+        let metaFilePath = _path.join(this.getEnvironmentPath(), 'metadata-win32.json'),
+            tmpFilePath = _path.join(_os.tmpdir(), 'e5r-env-php-metadata-download.html'),
+            metadata = {
+                "base_url": "http://windows.php.net/downloads/releases/",
+                "base_link_prefix": "/downloads/releases",
+                "archive_url": "http://windows.php.net/downloads/releases/archives/",
+                "archive_link_prefix": "/downloads/releases/archives",
+                "versions": []
+            },
+            lastVersions = [
+                // "latest,7,7.0 => 7.0.4",
+                // "5,5.6 => 5.6.19",
+                // "5.5 => 5.5.33",
+                // "5.4 => 5.4.45"
+            ];
+
+        let updateLastVersion = (version) => {
+            dev.printf('updateLastVersion("' + version + '")');
+            
+            let _parts = version.split('.'),
+                _major = _parts[0],
+                _minor = _parts[1],
+                _fix = _parts[2],
+                _updated = false;
+
+            for (let i in lastVersions) {
+                let _pair = lastVersions[i].split('=>'),
+                    _keys = _pair[0].trim().split(','),
+                    _value = _pair[1].trim();
+
+                dev.printf('>>', JSON.stringify(_keys), ':', version);
+
+                // // Major version not found
+                // if (0 > _keys.indexOf(_major)) {
+                //     dev.printf(i,': Major version not found:', version);
+                //     lastVersions[i] = [[_major, _major + '.' + _minor].join(','), version].join(' => ');
+                //     _updated = true;
+                //     break;
+                // }
+
+                // // Minor version not found
+                // if (0 > _keys.indexOf(_major + '.' + _minor)) {
+                //     dev.printf(i,': Minor version not found:', version);
+                //     lastVersions[i] = [[_major, _major + '.' + _minor].join(','), version].join(' => ');
+                //     _updated = true;
+                //     break;
+                // }
+                // continue;
+
+                if (-1 < _keys.indexOf(_major + '.' + _minor) && _fix > _value.split('.')[2]) {
+                    //let _vparts = _value.split('.');
+
+                    //if ((_minor > _vparts[1]) ||
+                    //    (_minor == _vparts[1] && _fix > _vparts[2])) {
+                    lastVersions[i] = [[_major, _major + '.' + _minor].join(','), version].join(' => ');
+                    //}
+
+                    _updated = true;
+                    break;
+                }
+            }
+
+            if (!_updated) {
+                lastVersions.push([[_major, _major + '.' + _minor].join(','), version].join(' => '));
+            }
+        }
+
+        let addVersion = (version, nts, vc, arch, archive) => {
+            let metaVersion;
+
+            for (let v in metadata.versions) {
+                if (metadata.versions[v].version === version) {
+                    metaVersion = metadata.versions[v];
+                    break;
+                }
+            };
+
+            if (!metaVersion) {
+                metaVersion = {
+                    "version": version,
+                    "nts": nts,
+                    "vc": vc,
+                    "arch": [arch],
+                    "is_archive": archive
+                };
+                metadata.versions.push(metaVersion);
+            }
+
+            if (0 > metaVersion.arch.indexOf(arch)) metaVersion.arch.push(arch);
+            //if (!archive) updateLastVersion(version);
+            updateLastVersion(version);
+        }
+
+        let delegateRun = (url, prefix, archive) => {
+            dev.downloadSync(url, tmpFilePath);
+
+            let _content = _fs.readFileSync(tmpFilePath).toString(),
+                _vr = '[0-9\.]{5,10}',  // Version Regex
+                _nr = 'nts-win32|win32', // NTS Regex
+                _vcr = '[0-9]{1,2}', // VC Regex
+                _ar = 'x86|x64', // Arch Regex
+                _fr = '(php-(' + _vr + ')-(' + _nr + ')-vc(' + _vcr + ')-(' + _ar + ')\.zip)', // Filename Regex
+                _link = '<a href="' + prefix + '/(.{10,50})">' + _fr + '</a>',
+                _rx = new RegExp(_link, 'gi'),
+                _rs;
+
+            while (_rs = _rx.exec(_content)) {
+                let version = _rs[3],
+                    nts = /nts/i.test(_rs[4]),
+                    vc = _rs[5],
+                    arch = _rs[6];
+                addVersion(version, nts, vc, arch, archive);
+            }
+
+            _fs.unlinkSync(tmpFilePath);
+        }
+
+        dev.mkdir(this.getEnvironmentPath());
+        //delegateRun(metadata.base_url, metadata.base_link_prefix, false);
+        delegateRun(metadata.archive_url, metadata.archive_link_prefix, true);
+
+        //dev.printf('METADATA after:', JSON.stringify(metadata, null, 2));
+        dev.printf('LAST_VERSIONS:', JSON.stringify(lastVersions, null, 4));
+    }
 }
 
 /**
@@ -425,7 +566,7 @@ class PhpEnvironment {
         if (0 > SUPPORTED_PLATFORMS.indexOf(platform)) {
             throw dev.createError('Environment PHP does not support the ' + platform.toUpperCase() + ' platform.');
         }
-        
+
         // Configure tool set
         if (platform == 'win32') {
             this._toolset = new PhpEnvironmentToolWin32();
@@ -441,14 +582,14 @@ class PhpEnvironment {
             this._toolset = new PhpEnvironmentTool();
         }
     }
-    
+
     /**
      * Get a tool set to current platform
      */
     get toolset() {
         return this._toolset;
     }
-    
+
     /**
      * Ensures that <options> has a suitable version number.
      * 
@@ -459,13 +600,16 @@ class PhpEnvironment {
     ensuresVersion(options) {
         return this._toolset.getLastVersion(options.version);
     }
-    
+
     /**
      * Install a new version of PHP if available
      * 
      * @param {object} options
      */
     install(options) {
+        this.toolset.updateMetadata();
+        return;
+
         let version = this.ensuresVersion(options);
 
         if (!version && options.version) {
@@ -488,7 +632,7 @@ class PhpEnvironment {
             if (dev.pathExists(versionDirectories.pathOld)) {
                 dev.rmdir(versionDirectories.pathOld);
             }
-            
+
             this._toolset.postInstall(version);
         } catch (error) {
             this._toolset.rollbackVersion(version, options);
