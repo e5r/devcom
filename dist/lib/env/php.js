@@ -594,6 +594,8 @@ class PhpEnvironment {
         }
 
         try {
+            dev.printf('Installing PHP v' + version + '...');
+
             let versionMetadata = this._toolset.getVersionMetadata(version);
             let packageFilePath = this._toolset.downloadPackageFile(versionMetadata, options);
             let versionDirectories = this._toolset.ensuresDirectoryVersion(version);
