@@ -24,86 +24,6 @@ const SUPPORTED_PLATFORMS = [
     'win32'
 ];
 
-/** @constant {array} */
-const LAST_VERSIONS = [
-    "latest,7,7.0 => 7.0.4",
-    "5,5.6 => 5.6.19",
-    "5.5 => 5.5.33",
-    "5.4 => 5.4.45"
-];
-
-/** @todo: Move to JSON file and concat on make dist */
-/** @todo: Auto make a JSON file from http://windows.php.net/downloads/releases */
-const WINDOWS_METADATA = {
-    "base_download_url": "http://windows.php.net/downloads/releases/",
-    "archive_download_url": "http://windows.php.net/downloads/releases/archives",
-    "versions": [
-        {
-            "version": "7.0.4",
-            "nts": true,
-            "vc": "14",
-            "arch": ["x64", "x86"],
-            "is_archive": false
-        },
-        {
-            "version": "7.0.3",
-            "nts": true,
-            "vc": "14",
-            "arch": ["x64", "x86"],
-            "is_archive": true
-        },
-        {
-            "version": "7.0.2",
-            "nts": true,
-            "vc": "14",
-            "arch": ["x64", "x86"],
-            "is_archive": true
-        },
-        {
-            "version": "7.0.1",
-            "nts": true,
-            "vc": "14",
-            "arch": ["x64", "x86"],
-            "is_archive": true
-        },
-        {
-            "version": "5.6.19",
-            "nts": true,
-            "vc": "11",
-            "arch": ["x64", "x86"],
-            "is_archive": false
-        },
-        {
-            "version": "5.6.18",
-            "nts": true,
-            "vc": "11",
-            "arch": ["x64", "x86"],
-            "is_archive": true
-        },
-        {
-            "version": "5.5.33",
-            "nts": true,
-            "vc": "11",
-            "arch": ["x64", "x86"],
-            "is_archive": false
-        },
-        {
-            "version": "5.5.32",
-            "nts": true,
-            "vc": "11",
-            "arch": ["x64", "x86"],
-            "is_archive": true
-        },
-        {
-            "version": "5.4.45",
-            "nts": true,
-            "vc": "9",
-            "arch": ["x86"],
-            "is_archive": false
-        }
-    ]
-};
-
 /**
  * A tool set for all or undefined platform
  * @class
@@ -113,6 +33,18 @@ const WINDOWS_METADATA = {
  * Throw exception if method if for a specific platform
  */
 class PhpEnvironmentTool {
+
+    constructor() {
+        this.__metadata = {};
+    }
+
+    get metadata() {
+        return this.__metadata;
+    }
+
+    set metadata(value) {
+        this.__metadata = value;
+    }
 
     /**
      * Get a last version corresponding to a given version
@@ -131,8 +63,8 @@ class PhpEnvironmentTool {
 
         if (3 < parts.length || 1 > parts.length) return null;
 
-        for (let index in LAST_VERSIONS) {
-            let version_parts = LAST_VERSIONS[index].split('=>'),
+        for (let index in this.metadata.last_versions) {
+            let version_parts = this.metadata.last_versions[index].split('=>'),
                 version_alias = (version_parts[0] || '').trim().split(','),
                 version_value = (version_parts[1] || '').trim();
             if (-1 < version_alias.indexOf(version)) return version_value;
@@ -155,11 +87,11 @@ class PhpEnvironmentTool {
             arch = (options.arch ? options.arch : dev.arch).toLowerCase();
 
         if (0 > versionMetadata.arch.indexOf(arch)) {
-            throw dev.createError('PHP not available for "' + arch + '" architecture.');
+            throw dev.createError('PHP v' + versionMetadata.version + ' not available for "' + arch + '" architecture.');
         }
 
         if (ntsRequired && !ntsAvailable) {
-            throw dev.createError('PHP version '
+            throw dev.createError('PHP v'
                 + versionMetadata.version
                 + ' not available for "Non Thread Safe" mode.')
         }
@@ -220,9 +152,9 @@ class PhpEnvironmentTool {
      * @return {object}
      */
     makeDirectoriesVersion(version) {
-        let versionPath = this.makeVersionPath(version);
-        let versionPathNew = versionPath + '_new';
-        let versionPathOld = versionPath + '_old';
+        let versionPath = this.makeVersionPath(version),
+            versionPathNew = versionPath + '_new',
+            versionPathOld = versionPath + '_old';
 
         return {
             path: versionPath,
@@ -373,8 +305,8 @@ class PhpEnvironmentToolWin32 extends PhpEnvironmentTool {
      * @return {object}
      */
     getVersionMetadata(version) {
-        for (let index in WINDOWS_METADATA.versions) {
-            let metadata = WINDOWS_METADATA.versions[index];
+        for (let index in this.metadata.versions) {
+            let metadata = this.metadata.versions[index];
             if (metadata.version === version) {
                 return metadata;
             }
@@ -411,8 +343,8 @@ class PhpEnvironmentToolWin32 extends PhpEnvironmentTool {
      */
     makePackageUrl(versionMetadata, packageFileName) {
         let baseUrl = versionMetadata.is_archive
-            ? WINDOWS_METADATA.archive_download_url
-            : WINDOWS_METADATA.base_download_url;
+            ? this.metadata.archive_url
+            : this.metadata.base_url;
         baseUrl += baseUrl.length - 1 !== baseUrl.lastIndexOf('/')
             ? '/'
             : '';
@@ -427,78 +359,35 @@ class PhpEnvironmentToolWin32 extends PhpEnvironmentTool {
      */
     updateMetadata() {
         let metaFilePath = _path.join(this.getEnvironmentPath(), 'metadata-win32.json'),
-            tmpFilePath = _path.join(_os.tmpdir(), 'e5r-env-php-metadata-download.html'),
-            metadata = {
-                "base_url": "http://windows.php.net/downloads/releases/",
-                "base_link_prefix": "/downloads/releases",
-                "archive_url": "http://windows.php.net/downloads/releases/archives/",
-                "archive_link_prefix": "/downloads/releases/archives",
-                "versions": []
-            },
-            lastVersions = [
-                // "latest,7,7.0 => 7.0.4",
-                // "5,5.6 => 5.6.19",
-                // "5.5 => 5.5.33",
-                // "5.4 => 5.4.45"
-            ];
+            tmpFilePath = _path.join(_os.tmpdir(), 'e5r-env-php-metadata-download.html');
 
-        let updateLastVersion = (version) => {
-            dev.printf('updateLastVersion("' + version + '")');
-            
-            let _parts = version.split('.'),
-                _major = _parts[0],
-                _minor = _parts[1],
-                _fix = _parts[2],
-                _updated = false;
+        this.metadata = {
+            "base_url": "http://windows.php.net/downloads/releases/",
+            "base_link_prefix": "/downloads/releases",
+            "archive_url": "http://windows.php.net/downloads/releases/archives/",
+            "archive_link_prefix": "/downloads/releases/archives",
+            "last_versions": [],
+            "versions": []
+        };
 
-            for (let i in lastVersions) {
-                let _pair = lastVersions[i].split('=>'),
-                    _keys = _pair[0].trim().split(','),
-                    _value = _pair[1].trim();
+        if (dev.fileExists(metaFilePath)) {
+            let stat = _fs.statSync(metaFilePath),
+                now = new Date(),
+                today = new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+                mdate = new Date(stat.mtime.getFullYear(), stat.mtime.getMonth(), stat.mtime.getDate());
 
-                dev.printf('>>', JSON.stringify(_keys), ':', version);
-
-                // // Major version not found
-                // if (0 > _keys.indexOf(_major)) {
-                //     dev.printf(i,': Major version not found:', version);
-                //     lastVersions[i] = [[_major, _major + '.' + _minor].join(','), version].join(' => ');
-                //     _updated = true;
-                //     break;
-                // }
-
-                // // Minor version not found
-                // if (0 > _keys.indexOf(_major + '.' + _minor)) {
-                //     dev.printf(i,': Minor version not found:', version);
-                //     lastVersions[i] = [[_major, _major + '.' + _minor].join(','), version].join(' => ');
-                //     _updated = true;
-                //     break;
-                // }
-                // continue;
-
-                if (-1 < _keys.indexOf(_major + '.' + _minor) && _fix > _value.split('.')[2]) {
-                    //let _vparts = _value.split('.');
-
-                    //if ((_minor > _vparts[1]) ||
-                    //    (_minor == _vparts[1] && _fix > _vparts[2])) {
-                    lastVersions[i] = [[_major, _major + '.' + _minor].join(','), version].join(' => ');
-                    //}
-
-                    _updated = true;
-                    break;
-                }
-            }
-
-            if (!_updated) {
-                lastVersions.push([[_major, _major + '.' + _minor].join(','), version].join(' => '));
+            if (!(mdate < today)) {
+                this.metadata = JSON.parse(_fs.readFileSync(metaFilePath));
+                return;
             }
         }
 
         let addVersion = (version, nts, vc, arch, archive) => {
             let metaVersion;
 
-            for (let v in metadata.versions) {
-                if (metadata.versions[v].version === version) {
-                    metaVersion = metadata.versions[v];
+            for (let v in this.metadata.versions) {
+                if (this.metadata.versions[v].version === version) {
+                    metaVersion = this.metadata.versions[v];
                     break;
                 }
             };
@@ -511,12 +400,12 @@ class PhpEnvironmentToolWin32 extends PhpEnvironmentTool {
                     "arch": [arch],
                     "is_archive": archive
                 };
-                metadata.versions.push(metaVersion);
+                this.metadata.versions.push(metaVersion);
             }
 
+            metaVersion.nts = metaVersion.nts || nts;
+
             if (0 > metaVersion.arch.indexOf(arch)) metaVersion.arch.push(arch);
-            //if (!archive) updateLastVersion(version);
-            updateLastVersion(version);
         }
 
         let delegateRun = (url, prefix, archive) => {
@@ -544,11 +433,69 @@ class PhpEnvironmentToolWin32 extends PhpEnvironmentTool {
         }
 
         dev.mkdir(this.getEnvironmentPath());
-        //delegateRun(metadata.base_url, metadata.base_link_prefix, false);
-        delegateRun(metadata.archive_url, metadata.archive_link_prefix, true);
+        delegateRun(this.metadata.base_url, this.metadata.base_link_prefix, false);
+        delegateRun(this.metadata.archive_url, this.metadata.archive_link_prefix, true);
 
-        //dev.printf('METADATA after:', JSON.stringify(metadata, null, 2));
-        dev.printf('LAST_VERSIONS:', JSON.stringify(lastVersions, null, 4));
+        // Update Minor (X.Y) version
+        this.metadata.last_versions = this.metadata.versions.reduce((p, c, i, a) => {
+            let result = i === 1 ? [] : p;
+
+            (i === 1 ? [p.version, c.version] : [c.version]).map(version => {
+                let __ = version.split('.'),
+                    _mj = __[0],
+                    _mn = __[1],
+                    _fx = __[2],
+                    _re = new RegExp(_mj + '\.' + _mn + ' => ' + _mj + '\.' + _mn + '\.([0-9]{1,2})', 'gi');
+
+                let _found = _re.exec(result.toString());
+
+                if (!_found) result.push(_mj + '.' + _mn + ' => ' + version);
+                if (_found && parseInt(_found[1]) < parseInt(_fx)) {
+                    result[result.indexOf(_found[0])] = _mj + '.' + _mn + ' => ' + version;
+                }
+            });
+
+            return result;
+        });
+
+        // Update Major (X) version
+
+        /**
+         * @note: { "5": [3, 0] };
+         *           ^    ^  ^
+         *           |    |  |.-> Index of Up Minor version
+         *           |    |_..--> Up Minor version
+         *           |___...----> Major version
+         */
+        let mj_idx = {},
+            mj_number = 0;
+
+        this.metadata.last_versions.map((v, i, a) => {
+            let __ = v.split(' => ')[0].split('.'),
+                _mj = __[0],
+                _mn = __[1];
+            if (!mj_idx[_mj]) mj_idx[_mj] = [_mn, i];
+            if (mj_idx[_mj] && mj_idx[_mj][0] < _mn) {
+                mj_idx[_mj] = [_mn, i];
+            }
+            if (mj_number < parseInt(_mj)) mj_number = parseInt(_mj);
+        });
+
+        // Set Major (X) version
+        for (let _idx in mj_idx) {
+            let _a = mj_idx[_idx],
+                _value = this.metadata.last_versions[_a[1]];
+            this.metadata.last_versions[_a[1]] = [_idx, _value].join(',');
+        };
+
+        // Set latest version
+        if (0 < mj_number) {
+            let _idx = mj_idx[mj_number][1],
+                _value = this.metadata.last_versions[_idx];
+            this.metadata.last_versions[_idx] = ['latest', _value].join(',');
+        }
+
+        _fs.writeFileSync(metaFilePath, JSON.stringify(this.metadata, null, 4));
     }
 }
 
@@ -608,12 +555,11 @@ class PhpEnvironment {
      */
     install(options) {
         this.toolset.updateMetadata();
-        return;
 
         let version = this.ensuresVersion(options);
 
         if (!version && options.version) {
-            throw dev.createError('Version ' + options.version + ' not found or invalid formated!');
+            throw dev.createError('PHP v' + options.version + ' not found or invalid formated!');
         }
 
         if (!version) {
@@ -639,7 +585,7 @@ class PhpEnvironment {
             throw error;
         }
 
-        dev.printf('PHP version ' + version + ' installed successfuly!')
+        dev.printf('PHP v' + version + ' installed successfuly!')
     }
     // 
     //     uninstall(options) {

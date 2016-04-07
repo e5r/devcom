@@ -2,13 +2,13 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "dev registry",
+			"name": "dev env install php",
 			"type": "node",
 			"request": "launch",
-			"program": "src/lib/cmd/registry.js",
+			"program": "${workspaceRoot}/src/lib/env/php.js",
 			"stopOnEntry": false,
 			"args": [],
-			"cwd": ".",
+			"cwd": "${workspaceRoot}",
 			"runtimeExecutable": null,
 			"runtimeArgs": [
 				"--nolazy",
