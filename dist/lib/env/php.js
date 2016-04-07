@@ -13,6 +13,9 @@ let dev = require('e5r-dev'),
 /** @constant {string} */
 const ENVIRONMENT_DIRECTORY = 'environment';
 
+/** @constant {string} */
+const ENVIRONMENT_VARNAME = 'E5R_ENV_PHP';
+
 /**
  * @todo: Implements no supported platforms.
  * 
@@ -34,8 +37,13 @@ const SUPPORTED_PLATFORMS = [
  */
 class PhpEnvironmentTool {
 
-    constructor() {
+    constructor(devTool) {
+        this.__devTool = devTool;
         this.__metadata = {};
+    }
+
+    get devTool() {
+        return this.__devTool;
     }
 
     get metadata() {
@@ -276,7 +284,10 @@ class PhpEnvironmentTool {
      * @param {string} version
      */
     postInstall(version) {
-        throw dev.createError('PhpEnvironmentTool->postInstall() not implemented!');
+        let directories = this.makeDirectoriesVersion(version),
+            pathToken = dev.getEnvironmentVarToken(ENVIRONMENT_VARNAME);
+        dev.setUserEnvironment(ENVIRONMENT_VARNAME, directories.path, this.devTool.shellOptions);
+        dev.addPathToEnvironmentPath(pathToken, this.devTool);
     }
 
     /**
@@ -516,7 +527,7 @@ class PhpEnvironment {
 
         // Configure tool set
         if (platform == 'win32') {
-            this._toolset = new PhpEnvironmentToolWin32();
+            this._toolset = new PhpEnvironmentToolWin32(this.devTool);
             // } else if (platform == 'darwin') {
             //     /** @todo: Implements `darwin` tool set */
             // } else if (platform == 'freebsd') {
@@ -528,6 +539,22 @@ class PhpEnvironment {
         } else {
             this._toolset = new PhpEnvironmentTool();
         }
+    }
+
+    /**
+     * Set a devTool instance
+     * 
+     * @note: used by `env.js`.run()
+     */
+    get devTool() {
+        return this._devTool;
+    }
+
+    /**
+     * Get a devTool instance
+     */
+    set devTool(tool) {
+        this._devTool = tool;
     }
 
     /**

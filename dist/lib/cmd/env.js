@@ -83,6 +83,7 @@ class Environment extends dev.DevCom {
                 + action.toUpperCase() + ' action.');
         }
         
+        envLib.devTool = devTool;
         actionFn.bind(envLib)(options);
     }
     
