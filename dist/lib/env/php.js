@@ -37,13 +37,24 @@ const SUPPORTED_PLATFORMS = [
  */
 class PhpEnvironmentTool {
 
-    constructor(devTool) {
-        this.__devTool = devTool;
+    constructor() {
         this.__metadata = {};
     }
 
     get devTool() {
         return this.__devTool;
+    }
+
+    set devTool(value) {
+        this.__devTool = value;
+    }
+
+    get options() {
+        return this.__options;
+    }
+
+    set options(value) {
+        this.__options = value;
     }
 
     get metadata() {
@@ -527,7 +538,7 @@ class PhpEnvironment {
 
         // Configure tool set
         if (platform == 'win32') {
-            this._toolset = new PhpEnvironmentToolWin32(this.devTool);
+            this._toolset = new PhpEnvironmentToolWin32();
             // } else if (platform == 'darwin') {
             //     /** @todo: Implements `darwin` tool set */
             // } else if (platform == 'freebsd') {
@@ -539,22 +550,6 @@ class PhpEnvironment {
         } else {
             this._toolset = new PhpEnvironmentTool();
         }
-    }
-
-    /**
-     * Set a devTool instance
-     * 
-     * @note: used by `env.js`.run()
-     */
-    get devTool() {
-        return this._devTool;
-    }
-
-    /**
-     * Get a devTool instance
-     */
-    set devTool(tool) {
-        this._devTool = tool;
     }
 
     /**
@@ -572,7 +567,13 @@ class PhpEnvironment {
      * @return {string} - Return a version string
      */
     ensuresVersion(options) {
-        return this._toolset.getLastVersion(options.version);
+        /**
+         * @todo: usage dev env install <name> --version <version>
+         *    or  usage dev env install <name> <version>
+         */
+        let version = options.version;
+        
+        return this._toolset.getLastVersion(version);
     }
 
     /**
@@ -580,7 +581,9 @@ class PhpEnvironment {
      * 
      * @param {object} options
      */
-    install(options) {
+    install(devTool, options) {
+        this.toolset.devTool = devTool;
+        this.toolset.options = options;
         this.toolset.updateMetadata();
 
         let version = this.ensuresVersion(options);

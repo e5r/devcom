@@ -83,14 +83,14 @@ class Environment extends dev.DevCom {
                 + action.toUpperCase() + ' action.');
         }
         
-        envLib.devTool = devTool;
-        actionFn.bind(envLib)(options);
+        actionFn.bind(envLib)(devTool, options);
     }
     
     /**
      * Show usage information for DevCom
      */
     usage() {
+        /** @todo: See `php.js` ensuresVersion() */
         dev.printf('Usage: dev env <action> <name> [options]');
         dev.printf();
         dev.printf('Actions:');
@@ -103,7 +103,7 @@ class Environment extends dev.DevCom {
 
         dev.printf();
         dev.printf('Options:');
-        dev.printf('  -v, --version    - Version of environment');
+        dev.printf('  --version    - Version of environment');
         dev.printf();
     }
 }
