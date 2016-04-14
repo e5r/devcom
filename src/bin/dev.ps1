@@ -14,7 +14,7 @@ for($count = 0; $count -lt $args.length; $count++) {
 
 $jsengine = [io.path]::getfullpath("$psscriptroot\..\tools\jsengine.exe")
 $devscript = [io.path]::getfullpath("$psscriptroot\..\lib\node_modules\e5r-dev.js")
-$postfile = [io.path]::getfullpath("$psscriptroot\..\dev-envvars.ps1")
+$postfile = [io.path]::getfullpath("$psscriptroot\..\tools\dev-envvars.ps1")
 $env:E5RDEV_CALLER = "powershell"
 
 if(!(test-path "$jsengine")) {

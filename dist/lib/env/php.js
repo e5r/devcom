@@ -296,9 +296,14 @@ class PhpEnvironmentTool {
      */
     postInstall(version) {
         let directories = this.makeDirectoriesVersion(version),
-            pathToken = dev.getEnvironmentVarToken(ENVIRONMENT_VARNAME);
+            pathToken = dev.getEnvironmentVarToken(ENVIRONMENT_VARNAME, this.devTool.shell);
         dev.setUserEnvironment(ENVIRONMENT_VARNAME, directories.path, this.devTool.shellOptions);
         dev.addPathToEnvironmentPath(pathToken, this.devTool);
+        
+        if(this.devTool.shell === 'powershell'){
+            let cmdToken = dev.getEnvironmentVarToken(ENVIRONMENT_VARNAME, 'cmd');
+            dev.addPathToEnvironmentPath(cmdToken, this.devTool, true);
+        }
     }
 
     /**
