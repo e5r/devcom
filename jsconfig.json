@@ -2,5 +2,11 @@
     "compilerOptions": {
         "target": "ES6",
         "module": "commonjs"
-    }
+    },
+    "files": [
+        "src/lib/cmd/env.js",
+        "src/lib/cmd/init.js",
+        "src/lib/cmd/registry.js",
+        "src/lib/env/php.js"
+    ]
 }
