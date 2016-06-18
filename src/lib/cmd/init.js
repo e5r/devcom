@@ -37,9 +37,34 @@ class Init extends dev.DevCom {
             return;
         }
 
+        let r = new RegExp('^([a-zA-Z0-9_\\-\\.]+)/([a-zA-Z0-9_\\-\\.]+)(@?)([a-zA-Z0-9_\\-\\.]*)$'),
+            template = r.exec(options.args[0]);
+
+        if (!template) {
+            throw dev.createError('Invalid template format.');
+        }
+
+        let user = template[1],
+            repository = template[2],
+            version = template[4] || 'master',
+            workdir = options.workdir || process.cwd();
+
+        let urlGitHub = 'https://github.com/{user}/{repository}/archive/{version}.zip'
+            .replace('{user}', user)
+            .replace('{repository}', repository)
+            .replace('{version}', version);
+
         // 2. Create if --workdir not exists
+        if (!dev.directoryExists(workdir)) {
+            dev.mkdir(workdir);
+        }
 
         // 3. Up exception if --workdir is not empty
+        if (!dev.directoryIsEmpty(workdir)) {
+            throw dev.createError('Directory [' + workdir + '] is not empty.');
+        }
+
+        let pause = true;
 
         // 4. Get a temporary directory
 

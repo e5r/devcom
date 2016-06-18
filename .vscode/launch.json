@@ -7,7 +7,11 @@
 			"request": "launch",
 			"program": "${workspaceRoot}/src/lib/cmd/init.js",
 			"stopOnEntry": false,
-			"args": ["e5r/empty-project@develop"],
+			"args": [
+				"--workdir",
+				"C:\\Users\\erlimar\\00-e5r-dev-init-test",
+				"e5r/empty-project@develop"
+				],
 			"cwd": "${workspaceRoot}",
 			"runtimeExecutable": null,
 			"runtimeArgs": [
