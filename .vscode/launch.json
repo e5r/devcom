@@ -2,12 +2,12 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "dev env install php",
+			"name": "dev init",
 			"type": "node",
 			"request": "launch",
-			"program": "${workspaceRoot}/src/lib/env/php.js",
+			"program": "${workspaceRoot}/src/lib/cmd/init.js",
 			"stopOnEntry": false,
-			"args": [],
+			"args": ["e5r/empty-project@develop"],
 			"cwd": "${workspaceRoot}",
 			"runtimeExecutable": null,
 			"runtimeArgs": [
