@@ -5,9 +5,17 @@
 "use strict";
 
 let _os = require('os'),
+    _fs = require('fs'),
     _path = require('path'),
     _crypto = require('crypto'),
     _dev = require('e5r-dev');
+
+const WIZARD_FILE = 'initwizard.e5r';
+const TEMPLATE_ZIP_FILE_NAME = '{version}.zip';
+
+// e5r/empty-project@1.0.0 -> https://codeload.github.com/e5r/empty-project/zip/v1.0.0
+const TEMPLATE_GITHUB_URL = 'https://codeload.github.com/{user}/{repository}/zip/{version}';
+const TEMPLATE_ZIP_FOLDER = '{repository}-{version}';
 
 /**
  * DevCom `init` command
@@ -24,6 +32,7 @@ class Init extends _dev.DevCom {
      * @param {object} options - Options for arguments of command
      */
     run(devTool, options) {
+
         if ((process.env['DEVCOM_MODE'] || '').toUpperCase() !== 'DEVELOPMENT' && !(devTool instanceof _dev.DevTool)) {
             throw _dev.createError('Init should be performed only via DEV command.');
         }
@@ -37,7 +46,6 @@ class Init extends _dev.DevCom {
 
         let r = new RegExp('^([a-zA-Z0-9_\\-\\.]+)/([a-zA-Z0-9_\\-\\.]+)(@?)([a-zA-Z0-9_\\-\\.]*)$'),
             template = r.exec(options.args[0]);
-
         if (!template) {
             throw _dev.createError('Invalid template format.');
         }
@@ -46,7 +54,7 @@ class Init extends _dev.DevCom {
             repository = template[2],
             version = template[4] || 'master',
             workdir = options.workdir || process.cwd(),
-            zipFileName = '{version}.zip'.replace('{version}', version);
+            zipFileName = TEMPLATE_ZIP_FILE_NAME.replace('{version}', version);
 
         // Create if --workdir not exists
         if (!_dev.directoryExists(workdir)) {
@@ -59,30 +67,39 @@ class Init extends _dev.DevCom {
         }
 
         // Generate GitHub URL. 
-        // - Ex: e5r/empty-project@1.0.0 -> https://codeload.github.com/e5r/empty-project/zip/v1.0.0
-        let urlGitHub = 'https://codeload.github.com/{user}/{repository}/zip/{version}'
+        let urlGitHub = TEMPLATE_GITHUB_URL
             .replace('{user}', user)
             .replace('{repository}', repository)
             .replace('{version}', version),
-
+            zipFolderName = TEMPLATE_ZIP_FOLDER
+                .replace('{repository}', repository)
+                .replace('{version}', version),
             tmpPath = _dev.generateTempDir(),
-            zipPath = _path.join(tmpPath, zipFileName);
+            zipFilePath = _path.join(tmpPath, zipFileName),
+            zipFolderPath = _path.join(tmpPath, zipFolderName),
+            wizardFilePath = _path.join(zipFolderPath, WIZARD_FILE);
 
         if (!_dev.directoryExists(tmpPath)) {
             _dev.mkdir(tmpPath);
         }
 
-        // Download ZIP file to temporary directory
         _dev.printf('TMP:', tmpPath);
+        _dev.printf('Zip folder:', zipFolderPath);
 
-        _dev.downloadSync(urlGitHub, zipPath);
+        // Download ZIP file to temporary directory
+        _dev.downloadSync(urlGitHub, zipFilePath);
 
         // 6. Extract ZIP file
-
-        let pause = true;
-
+        _dev.extractFile(zipFilePath, tmpPath);
 
         // 7. Read '.init-template.json' from temporary directory
+        if (!_dev.fileExists(wizardFilePath)) {
+            throw _dev.createError('Template wizard file [' + WIZARD_FILE + '] not found.');
+        }
+
+        let wizard = JSON.parse(_fs.readFileSync(wizardFilePath));
+
+        let pause = true;
 
         // 8. Start wizard based on '.init-template.json' properties
     }
