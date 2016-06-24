@@ -4,18 +4,17 @@
 /* global process, __filename, __dirname */
 "use strict";
 
-let _os = require('os'),
-    _fs = require('fs'),
+let _fs = require('fs'),
+    _os = require('os'),
     _path = require('path'),
-    _crypto = require('crypto'),
     _dev = require('e5r-dev');
 
-const WIZARD_FILE = 'initwizard.e5r';
+const UNDEFINED = 'undefined';
+const WIZARD_FILE = '.initwizard.e5r';
 const TEMPLATE_ZIP_FILE_NAME = '{version}.zip';
-
-// e5r/empty-project@1.0.0 -> https://codeload.github.com/e5r/empty-project/zip/v1.0.0
 const TEMPLATE_GITHUB_URL = 'https://codeload.github.com/{user}/{repository}/zip/{version}';
 const TEMPLATE_ZIP_FOLDER = '{repository}-{version}';
+const WIZARD_GET_PROPERTY_LINE = '  > {title}{options}{default}:';
 
 /**
  * DevCom `init` command
@@ -32,7 +31,6 @@ class Init extends _dev.DevCom {
      * @param {object} options - Options for arguments of command
      */
     run(devTool, options) {
-
         if ((process.env['DEVCOM_MODE'] || '').toUpperCase() !== 'DEVELOPMENT' && !(devTool instanceof _dev.DevTool)) {
             throw _dev.createError('Init should be performed only via DEV command.');
         }
@@ -40,7 +38,7 @@ class Init extends _dev.DevCom {
         // Check parameter [0] format. githubuser/repository@version
         // - @version is optional, default is master
         if (!options || !Array.isArray(options.args) || 1 > options.args.length) {
-            this.usage();
+            this.usage(devTool);
             return;
         }
 
@@ -66,7 +64,7 @@ class Init extends _dev.DevCom {
             throw _dev.createError('Directory [' + workdir + '] is not empty.');
         }
 
-        // Generate GitHub URL. 
+        // Generate GitHub URL
         let urlGitHub = TEMPLATE_GITHUB_URL
             .replace('{user}', user)
             .replace('{repository}', repository)
@@ -83,32 +81,155 @@ class Init extends _dev.DevCom {
             _dev.mkdir(tmpPath);
         }
 
-        _dev.printf('TMP:', tmpPath);
-        _dev.printf('Zip folder:', zipFolderPath);
-
-        // Download ZIP file to temporary directory
-        _dev.downloadSync(urlGitHub, zipFilePath);
-
-        // 6. Extract ZIP file
+        // _dev.printf('TMP:', tmpPath);
+        // _dev.printf('Zip folder:', zipFolderPath);
+        _dev.downloadSync(urlGitHub, zipFilePath, { quiet: true });
         _dev.extractFile(zipFilePath, tmpPath);
 
-        // 7. Read '.init-template.json' from temporary directory
+        let context = this.loadContext(wizardFilePath, workdir);
+
+        // TODO: this.changeFiles(context);
+
+        try {
+            _dev.rmdir(tmpPath);
+        } catch (_) { /*quiet*/ }
+    }
+
+    /**
+     * Make a data context from wizard object
+     * 
+     * @param {object} wizard - Wizard object
+     * @param {string} workdir - Work directory
+     * @return {object}
+     */
+    loadContext(wizardFilePath, workdir) {
+        let wizard;
+
         if (!_dev.fileExists(wizardFilePath)) {
             throw _dev.createError('Template wizard file [' + WIZARD_FILE + '] not found.');
         }
 
-        let wizard = JSON.parse(_fs.readFileSync(wizardFilePath));
+        try {
+            wizard = JSON.parse(_fs.readFileSync(wizardFilePath));
+            if (!wizard) throw wizard;
+        } catch (_) {
+            throw _dev.createError('Invalid wizard file [' + WIZARD_FILE + '] format.');
+        }
 
-        let pause = true;
+        if (!this.validateWizard(wizard)) {
+            throw _dev.createError('Invalid wizard object format.');
+        }
 
-        // 8. Start wizard based on '.init-template.json' properties
+        let now = new Date();
+
+        let context = {
+            builtin: {
+                workdir: workdir,
+                folderName: _path.basename(workdir),
+                // Date/Time
+                year: now.getFullYear(),
+                month: now.getMonth(),
+                day: now.getDate(),
+                hour: now.getHours(),
+                minute: now.getMinutes(),
+                second: now.getSeconds(),
+                milliseconds: now.getMilliseconds(),
+                weekday: now.getDay()
+            }
+        }
+
+        this.runWizard(wizard, context);
+
+        return context;
+    }
+
+    /**
+     * Validate wizard fields formats.
+     * 
+     * @param {object} wizard - Wizard object
+     * @return {bool}
+     */
+    validateWizard(wizard) {
+        if (typeof wizard !== typeof {}) return false;
+        if (typeof wizard.message !== 'string' && !Array.isArray(wizard.message)) return false;
+        if (!Array.isArray(wizard.properties)) return false;
+        if (typeof wizard.excludes !== UNDEFINED && !Array.isArray(wizard.excludes)) return false;
+
+        return true;
+    }
+
+    /**
+     * Run wizard and make a context
+     * 
+     * @param {object} wizard - Object wizard
+     * @param {object} context - Object context
+     */
+    runWizard(wizard, context) {
+        this.showWelcomeMessage(wizard);
+        this.addProperties(wizard, context);
+    }
+
+    /**
+     * Show a wizard welcome message
+     * 
+     * @param {object} wizard - Object wizard
+     */
+    showWelcomeMessage(wizard) {
+        let message = wizard.message;
+
+        if (Array.isArray(message)) {
+            message = message.join(_os.EOL);
+        }
+
+        _dev.printf(message);
+    }
+
+    /**
+     * Add wizard properties to context
+     * 
+     * @param {object} wizard - Object wizard
+     * @param {object} context - Object context
+     */
+    addProperties(wizard, context) {
+        wizard.properties.map((p, idx) => {
+            if (!p.name) {
+                throw _dev.createError('Invalid name for wizard property [' + idx + '].');
+            }
+
+            let name = p.name,
+                title = p.title || p.name,
+                defaultValue = p.default || '',
+                options = (p.options || '').split('|');
+
+            let optionsText = options.length > 0
+                ? ' ({0})'.replace('{0}', options.join(', '))
+                : '';
+
+            let defaultText = defaultValue !== ''
+                ? ' [{0}]'.replace('{0}', defaultValue)
+                : defaultValue;
+
+            let lineText = WIZARD_GET_PROPERTY_LINE
+                .replace('{title}', title)
+                .replace('{options}', optionsText)
+                .replace('{default}', defaultText);
+
+            let value = _dev.prompt(lineText);
+
+            _dev.printf('   ---> selected (' + value.length + '):', value);
+            if (value.length > 0) {
+                _dev.printf('      > code:', value.charCodeAt(0));
+            }
+        });
     }
 
     /**
      * Show usage information for DevCom
+     * 
+     * @param {object} devTool - Instance of DevToolCommandLine
      */
-    usage() {
-        _dev.printf('Usage: _dev init [options]');
+    usage(devTool) {
+        _dev.printf('Usage: ' + devTool.name + ' init [options]');
         _dev.printf();
         _dev.printf('  Options:');
         _dev.printf('    template       - Template signature: Ex: <user>/<repository>[@<version>]');
@@ -116,19 +237,10 @@ class Init extends _dev.DevCom {
         _dev.printf('      > repository - GitHub repository name');
         _dev.printf('      > version    - Branch/Tag name. Default: master');
     }
-
-    /**
-     * Generate a temporary directory name
-     */
-    getTempDir() {
-        let tmpdir = _crypto.randomBytes(16).toString('hex');
-        return _path.join(_os.tmpdir(), tmpdir);
-    }
 }
 
 module.exports = new Init();
 
-// devcom.run(this, parseArgOptions(this._args));
 // Run Init DevCom on developer instance
 if (!module.parent && module.filename === __filename) {
     let _devTool = _dev.devToolDefaultInstance,
@@ -144,3 +256,5 @@ if (!module.parent && module.filename === __filename) {
 
     _devTool.exit();
 }
+
+// $> node src\lib\cmd\init.js --workdir "C:\Users\erlimar\00-e5r-dev-init-test" e5r/empty-project@develop
