@@ -10,7 +10,8 @@
 			"args": [
 				"--workdir",
 				"C:\\Users\\erlimar\\00-e5r-dev-init-test",
-				"e5r/empty-project@develop"
+				"e5r/empty-project@develop",
+				"-D"
 				],
 			"cwd": "${workspaceRoot}",
 			"runtimeExecutable": null,

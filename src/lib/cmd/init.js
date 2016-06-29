@@ -7,6 +7,7 @@
 let _fs = require('fs'),
     _os = require('os'),
     _path = require('path'),
+    _vm = require('vm'),
     _dev = require('e5r-dev');
 
 const UNDEFINED = 'undefined';
@@ -14,7 +15,7 @@ const WIZARD_FILE = '.initwizard.e5r';
 const TEMPLATE_ZIP_FILE_NAME = '{version}.zip';
 const TEMPLATE_GITHUB_URL = 'https://codeload.github.com/{user}/{repository}/zip/{version}';
 const TEMPLATE_ZIP_FOLDER = '{repository}-{version}';
-const WIZARD_GET_PROPERTY_LINE = '  > {title}{options}{default}:';
+const WIZARD_GET_PROPERTY_LINE = '  > {title}{options}{default}: ';
 
 /**
  * DevCom `init` command
@@ -81,14 +82,16 @@ class Init extends _dev.DevCom {
             _dev.mkdir(tmpPath);
         }
 
-        // _dev.printf('TMP:', tmpPath);
-        // _dev.printf('Zip folder:', zipFolderPath);
         _dev.downloadSync(urlGitHub, zipFilePath, { quiet: true });
         _dev.extractFile(zipFilePath, tmpPath);
 
-        let context = this.loadContext(wizardFilePath, workdir);
+        let context = this.loadContext(wizardFilePath, workdir, options);
 
-        // TODO: this.changeFiles(context);
+        _dev.printf(JSON.stringify(context, null, 4));
+
+        this.expandFiles(context);
+        this.copyFiles(context);
+        this.removeFiles(context);
 
         try {
             _dev.rmdir(tmpPath);
@@ -96,13 +99,57 @@ class Init extends _dev.DevCom {
     }
 
     /**
+     * Expand content files, replacing magic strings "{% expression }%"
+     * for values of context.
+     * 
+     * @param {object} context The wizard context
+     */
+    expandFiles(context) {
+        context.filesToExpand.map((file) => {
+            let filePath = _path.join(context.tempContainer, file),
+                fileContent = _fs.readFileSync(filePath),
+                expanded = this.expandString(fileContent.toString(), context);
+
+            if (0 < expanded.count) {
+                _fs.writeFileSync(filePath, expanded.value);
+            }
+        });
+    }
+
+    /**
+     * Copy files to workdir
+     * 
+     * @param {object} context The wizard context
+     */
+    copyFiles(context) {
+        context.filesToCopy.map((file) => {
+            let fileFromPath = _path.join(context.tempContainer, file),
+                fileToPath = _path.join(context.builtin.workdir, file),
+                fileToFolder = _path.dirname(fileToPath);
+
+            _dev.mkdir(fileToFolder);
+            _fs.writeFileSync(fileToPath, _fs.readFileSync(fileFromPath));
+        });
+    }
+
+    /**
+     * Remove files from workdir based on defWizard
+     * 
+     * @param {object} context The wizard context
+     */
+    removeFiles(context) {
+
+    }
+
+    /**
      * Make a data context from wizard object
      * 
      * @param {object} wizard - Wizard object
      * @param {string} workdir - Work directory
+     * @param {object} options - Options for arguments of command
      * @return {object}
      */
-    loadContext(wizardFilePath, workdir) {
+    loadContext(wizardFilePath, workdir, options) {
         let wizard;
 
         if (!_dev.fileExists(wizardFilePath)) {
@@ -126,19 +173,24 @@ class Init extends _dev.DevCom {
             builtin: {
                 workdir: workdir,
                 folderName: _path.basename(workdir),
-                // Date/Time
-                year: now.getFullYear(),
-                month: now.getMonth(),
-                day: now.getDate(),
-                hour: now.getHours(),
-                minute: now.getMinutes(),
-                second: now.getSeconds(),
-                milliseconds: now.getMilliseconds(),
-                weekday: now.getDay()
-            }
+                year: now.getFullYear().toString(),
+                month: (now.getMonth() + 1).toString(),
+                day: now.getDate().toString(),
+                hour: now.getHours().toString(),
+                minute: now.getMinutes().toString(),
+                second: now.getSeconds().toString(),
+                milliseconds: now.getMilliseconds().toString(),
+                weekday: (now.getDay() + 1).toString()
+            },
+            tempContainer: _path.dirname(wizardFilePath),
+            defWizard: wizard,
+            wizard: {}
         }
+        // 1 -> 01
+        context.builtin.month = 2 > context.builtin.month.length ? '0' + context.builtin.month : context.builtin.month;
+        context.builtin.day = 2 > context.builtin.day.length ? '0' + context.builtin.day : context.builtin.day;
 
-        this.runWizard(wizard, context);
+        this.runWizard(context, options);
 
         return context;
     }
@@ -155,26 +207,41 @@ class Init extends _dev.DevCom {
         if (!Array.isArray(wizard.properties)) return false;
         if (typeof wizard.excludes !== UNDEFINED && !Array.isArray(wizard.excludes)) return false;
 
+        for (let p in wizard.properties) {
+            p = wizard.properties[p];
+            if (typeof p.name !== 'string') return false;
+            if (typeof p.title !== UNDEFINED && typeof p.title !== 'string') return false;
+            if (typeof p.match !== UNDEFINED && typeof p.match !== 'string') return false;
+            if (typeof p.default !== UNDEFINED && typeof p.default !== 'string') return false;
+            if (typeof p.options !== UNDEFINED && !Array.isArray(p.options)) return false;
+        }
+
         return true;
     }
 
     /**
      * Run wizard and make a context
      * 
-     * @param {object} wizard - Object wizard
      * @param {object} context - Object context
+     * @param {object} options - Options for arguments of command
      */
-    runWizard(wizard, context) {
-        this.showWelcomeMessage(wizard);
-        this.addProperties(wizard, context);
+    runWizard(context, options) {
+        if (!options.d) {
+            this.showWelcomeMessage(context.defWizard, options);
+        }
+        this.addProperties(context, options);
+
+        context.filesToExpand = this.searchFiles(context.tempContainer, context.defWizard.expandExcludes);
+        context.filesToCopy = this.searchFiles(context.tempContainer, context.defWizard.copyExcludes);
     }
 
     /**
      * Show a wizard welcome message
      * 
      * @param {object} wizard - Object wizard
+     * @param {object} options - Options for arguments of command
      */
-    showWelcomeMessage(wizard) {
+    showWelcomeMessage(wizard, options) {
         let message = wizard.message;
 
         if (Array.isArray(message)) {
@@ -187,40 +254,140 @@ class Init extends _dev.DevCom {
     /**
      * Add wizard properties to context
      * 
-     * @param {object} wizard - Object wizard
      * @param {object} context - Object context
+     * @param {object} toolOptions - Options for arguments of command
      */
-    addProperties(wizard, context) {
-        wizard.properties.map((p, idx) => {
-            if (!p.name) {
-                throw _dev.createError('Invalid name for wizard property [' + idx + '].');
-            }
-
+    addProperties(context, toolOptions) {
+        context.defWizard.properties.map((p, idx) => {
             let name = p.name,
-                title = p.title || p.name,
-                defaultValue = p.default || '',
-                options = (p.options || '').split('|');
+                title = this.expandString(p.title || p.name).value,
+                defaultValue = this.expandString(p.default || '', context).value,
+                value = defaultValue;
 
-            let optionsText = options.length > 0
-                ? ' ({0})'.replace('{0}', options.join(', '))
-                : '';
+            if (!toolOptions.d) {
 
-            let defaultText = defaultValue !== ''
-                ? ' [{0}]'.replace('{0}', defaultValue)
-                : defaultValue;
+                let options = (p.options || []),
+                    optionsText = options.length > 0
+                        ? ' ({0})'.replace('{0}', options.join(', '))
+                        : '',
+                    defaultText = defaultValue !== ''
+                        ? ' [{0}]'.replace('{0}', defaultValue)
+                        : defaultValue,
+                    lineText = WIZARD_GET_PROPERTY_LINE
+                        .replace('{title}', title)
+                        .replace('{options}', optionsText)
+                        .replace('{default}', defaultText);
+                value = _dev.prompt(lineText) || defaultValue;
 
-            let lineText = WIZARD_GET_PROPERTY_LINE
-                .replace('{title}', title)
-                .replace('{options}', optionsText)
-                .replace('{default}', defaultText);
+                if (typeof p.match === 'string' && !(new RegExp(p.match).test(value))) {
+                    _dev.printf('#WARNING: Invalid value. Assuming default value. [' + defaultValue + ']');
+                    value = defaultValue;
+                }
 
-            let value = _dev.prompt(lineText);
-
-            _dev.printf('   ---> selected (' + value.length + '):', value);
-            if (value.length > 0) {
-                _dev.printf('      > code:', value.charCodeAt(0));
+                if (Array.isArray(p.options) && 0 > p.options.indexOf(value)) {
+                    _dev.printf('#WARNING: Invalid value. Assuming default value. [' + defaultValue + ']');
+                    value = defaultValue;
+                }
             }
+
+            context.wizard[name] = value;
         });
+    }
+
+    /**
+     * Expand strings "{% x %}" based on context values.
+     * 
+     * @param {string} str      String with "{%x%}" expression
+     * @param {object} context  Object context
+     * @return {object} Expanded string
+     */
+    expandString(str, context) {
+        let rx = new RegExp('{%([^%]+)%}', 'gi'),
+            result = {
+                value: str,
+                count: 0
+            },
+            rs;
+
+        while (rs = rx.exec(result.value)) {
+            let original = rs[0],
+                jsExp = rs[1],
+                jsResult;
+
+            try {
+                jsResult = _vm.runInNewContext(jsExp, context) || '';
+            } catch (_) {
+                jsResult = '[#ERROR: ' + (_.message || _) + ']';
+            }
+
+            result.value = result.value.replace(original, jsResult);
+            rx.lastIndex = 0;
+            result.count++;
+        }
+
+        return result;
+    }
+
+    /**
+     * Search and index a list files on directory
+     * 
+     * @todo: Move to e5r-dev lib.
+     * 
+     * @param {Array} excludes Paths to excludes
+     */
+    searchFiles(basePath, excludes, prefix) {
+        let results = [];
+        excludes = excludes || [];
+        prefix = typeof prefix === 'string' ? prefix : '';
+
+        if (!Array.isArray(excludes)) {
+            throw _dev.createError('Parameter excludes must be an Array.');
+        }
+
+        if (!_fs.statSync(basePath).isDirectory()) {
+            throw _dev.createError('Path "' + basePath + '" is not a directory.');
+        }
+
+        let list = _fs.readdirSync(basePath);
+
+        for (let i in list) {
+            let childName = list[i],
+                childSegments = (0 < prefix.length ? prefix + '/' : '') + childName,
+                childPath = _path.join(basePath, childName),
+                excluded = false;
+
+            if (childName === "." || childName === "..") continue;
+            if (childSegments === WIZARD_FILE) continue;
+
+            for (let ex in excludes) {
+                ex = excludes[ex] || '';
+                ex = (0 !== ex.indexOf('^') ? '^' : '') + ex;
+                ex = ex + (ex.length - 1 !== ex.lastIndexOf('$') ? '$' : '');
+
+                if (new RegExp(ex).test(childSegments)) {
+                    excluded = true;
+                    break;
+                }
+            }
+
+            if (excluded) continue;
+
+            let stat = _fs.statSync(childPath);
+
+            if (stat.isDirectory()) {
+                let _basePath = _path.join(basePath, childName),
+                    _prefix = childSegments;
+
+                let _results = this.searchFiles(_basePath, excludes, _prefix);
+                results = results.concat(_results);
+
+                continue;
+            }
+
+            results.push(childSegments);
+        }
+
+        return results;
     }
 
     /**
