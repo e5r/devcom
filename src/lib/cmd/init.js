@@ -16,6 +16,7 @@ const TEMPLATE_ZIP_FILE_NAME = '{version}.zip';
 const TEMPLATE_GITHUB_URL = 'https://codeload.github.com/{user}/{repository}/zip/{version}';
 const TEMPLATE_ZIP_FOLDER = '{repository}-{version}';
 const WIZARD_GET_PROPERTY_LINE = '  > {title}{options}{default}: ';
+const IF_EXPRESSION_TRUE_RESULT = '__IFE_TRUE__';
 
 /**
  * DevCom `init` command
@@ -92,6 +93,7 @@ class Init extends _dev.DevCom {
         this.expandFiles(context);
         this.copyFiles(context);
         this.removeFiles(context);
+        this.renameFiles(context);
 
         try {
             _dev.rmdir(tmpPath);
@@ -138,6 +140,45 @@ class Init extends _dev.DevCom {
      * @param {object} context The wizard context
      */
     removeFiles(context) {
+        (context.defWizard.remove || []).map((def) => {
+            _dev.printf('#remove:', def);
+
+            if ((typeof def.match === 'string' || typeof def.path === 'string') && this.evalIfExpression(def.if || 'false', context)) {
+                let removeList = [];
+
+                if (def.match) {
+                    let match = def.match;
+                    match = (0 !== match.indexOf('^') ? '^' : '') + match;
+                    match = match + (match.length - 1 !== match.lastIndexOf('$') ? '$' : '');
+
+                    context.filesToCopy.map((file) => {
+                        if (new RegExp(match).test(file)) {
+                            removeList.push(_path.join(context.builtin.workdir, file));
+                        }
+                    });
+                }
+
+                if (def.path) {
+                    let path = _path.join(context.builtin.workdir, def.path);
+                    if (_dev.pathExists(path)) {
+                        removeList.push(path);
+                    }
+                }
+
+                removeList.map((path) => {
+                    if (_dev.fileExists(path)) _fs.unlinkSync(path);
+                    if (_dev.directoryExists(path)) _dev.rmdir(path);
+                });
+            }
+        });
+    }
+
+    /**
+     * Rename files from workdir based on defWizard
+     * 
+     * @param {object} context The wizard context
+     */
+    renameFiles(context) {
         /** @todo: Not implemented */
     }
 
@@ -326,6 +367,23 @@ class Init extends _dev.DevCom {
         }
 
         return result;
+    }
+
+    /**
+     * Evaluate a expression on context.
+     * 
+     * @param {string} ifExpress If expression
+     * @param {object} context Object context
+     * @return {bool} True if success, or False if not success or exception
+     */
+    evalIfExpression(ifExpress, context) {
+        try {
+            ifExpress = '(' + ifExpress + ') ? "' + IF_EXPRESSION_TRUE_RESULT + '" : ""';
+            let jsResult = _vm.runInNewContext(ifExpress, context) || '';
+            return jsResult === IF_EXPRESSION_TRUE_RESULT;
+        } catch (_) { /* quiet */ }
+
+        return false;
     }
 
     /**
