@@ -138,7 +138,7 @@ class Init extends _dev.DevCom {
      * @param {object} context The wizard context
      */
     removeFiles(context) {
-
+        /** @todo: Not implemented */
     }
 
     /**
@@ -333,7 +333,9 @@ class Init extends _dev.DevCom {
      * 
      * @todo: Move to e5r-dev lib.
      * 
-     * @param {Array} excludes Paths to excludes
+     * @param {string} basePath Base path to start search
+     * @param {Array} excludes  Paths to excludes
+     * @param {string} prefix   Prefix to names, used on recursive
      */
     searchFiles(basePath, excludes, prefix) {
         let results = [];
