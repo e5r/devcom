@@ -12,6 +12,7 @@ let _fs = require('fs'),
 
 const UNDEFINED = 'undefined';
 const WIZARD_FILE = '.initwizard.e5r';
+const TEMPLATE_DEFAULT = 'e5r/empty-project@develop';
 const TEMPLATE_ZIP_FILE_NAME = '{version}.zip';
 const TEMPLATE_GITHUB_URL = 'https://codeload.github.com/{user}/{repository}/zip/{version}';
 const TEMPLATE_ZIP_FOLDER = '{repository}-{version}';
@@ -35,6 +36,10 @@ class Init extends _dev.DevCom {
     run(devTool, options) {
         if ((process.env['DEVCOM_MODE'] || '').toUpperCase() !== 'DEVELOPMENT' && !(devTool instanceof _dev.DevTool)) {
             throw _dev.createError('Init should be performed only via DEV command.');
+        }
+
+        if (options && Array.isArray(options.args) && options.args.length === 0) {
+            options.args.push(TEMPLATE_DEFAULT);
         }
 
         // Check parameter [0] format. githubuser/repository@version
