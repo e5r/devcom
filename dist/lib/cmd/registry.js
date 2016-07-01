@@ -8,7 +8,10 @@ let _fs = require('fs'),
     _path = require('path'),
     _url = require('url'),
     _os = require('os'),
-    dev = require('e5r-dev');
+    _dev = require('e5r-dev');
+
+/** @constant {string} */
+const UNDEFINED = 'undefined';
 
 /** @constant {string} */
 const REGISTRY_FILE = 'registry.json';
@@ -29,10 +32,10 @@ const REGISTRY_LOCAL_LOCKFILE = 'registry.' + MAGIC_REGISTRY_LOCKNAME + '.lock.j
  */
 function writeRegistry(registry) {
     if (typeof registry !== 'object') {
-        throw dev.createError('Invalid content type of registry.');
+        throw _dev.createError('Invalid content type of registry.');
     }
 
-    let registryPath = _path.resolve(dev.devHome.root, REGISTRY_FILE),
+    let registryPath = _path.resolve(_dev.devHome.root, REGISTRY_FILE),
         registryContent = JSON.stringify(registry, null, 4);
 
     _fs.writeFileSync(registryPath, registryContent, 'utf8');
@@ -46,20 +49,20 @@ function writeRegistry(registry) {
  */
 function readLockFileRegistry(entryName) {
     if (typeof entryName !== 'string') {
-        throw dev.createError('Invalid entryName. Must be an string.');
+        throw _dev.createError('Invalid entryName. Must be an string.');
     }
 
     let lockFileName = REGISTRY_LOCAL_LOCKFILE.replace(MAGIC_REGISTRY_LOCKNAME, entryName),
-        lockFilePath = _path.resolve(dev.devHome.root, lockFileName);
+        lockFilePath = _path.resolve(_dev.devHome.root, lockFileName);
 
     if (!_fs.existsSync(lockFilePath)) {
-        throw dev.createError('Lock file registry "' + lockFileName + '" not found!');
+        throw _dev.createError('Lock file registry "' + lockFileName + '" not found!');
     }
 
     let lockRegistry = require(lockFilePath);
 
     if (!Array.isArray(lockRegistry)) {
-        throw dev.createError('Invalid lock content. Must be an array of file paths.');
+        throw _dev.createError('Invalid lock content. Must be an array of file paths.');
     }
 
     return lockRegistry;
@@ -103,7 +106,7 @@ function countLockFiles(entryName) {
  */
 function getBinaryLockFiles(lockFiles) {
     if (!Array.isArray(lockFiles)) {
-        throw dev.createError('Invalid lockFiles. Must be an array.');
+        throw _dev.createError('Invalid lockFiles. Must be an array.');
     }
 
     let buffer = [],
@@ -131,7 +134,7 @@ function getBinaryLockFiles(lockFiles) {
  * 
  * Manage registry of E5R Tools for Development Team
  */
-class Registry extends dev.DevCom {
+class Registry extends _dev.DevCom {
 
     /**
      * Run the `registry` devcom
@@ -140,8 +143,8 @@ class Registry extends dev.DevCom {
      * @param {object} options - Options for arguments of command
      */
     run(devTool, options) {
-        if ((process.env['DEVCOM_MODE'] || '').toUpperCase() !== 'DEVELOPMENT' && !(devTool instanceof dev.DevTool)) {
-            throw dev.createError('Registry should be performed only via DEV command.');
+        if ((process.env['DEVCOM_MODE'] || '').toUpperCase() !== 'DEVELOPMENT' && !(devTool instanceof _dev.DevTool)) {
+            throw _dev.createError('Registry should be performed only via DEV command.');
         }
 
         if (!options || !Array.isArray(options.args) || 1 > options.args.length) {
@@ -149,11 +152,11 @@ class Registry extends dev.DevCom {
             return;
         }
 
-        let actionName = dev.makeCamelCaseName(options.args.shift()),
+        let actionName = _dev.makeCamelCaseName(options.args.shift()),
             actionFn = this[actionName + 'Action'];
 
         if (typeof actionFn !== 'function') {
-            throw dev.createError('Unknown action "' + actionName + '" for registry DevCom.');
+            throw _dev.createError('Unknown action "' + actionName + '" for registry DevCom.');
         }
 
         actionFn(options);
@@ -163,17 +166,19 @@ class Registry extends dev.DevCom {
      * Show usage information for DevCom
      */
     usage() {
-        dev.printf('Usage: dev registry [action] [options]');
-        dev.printf();
-        dev.printf('  Actions:');
-        dev.printf('    list         - List all registry entries');
-        dev.printf('    show         - Show details of a registry entry');
-        dev.printf('    remove       - Remove a registry entry');
-        dev.printf('    add          - Add new entries for registry');
-        dev.printf('    get-binaries - Download and install binaries');
-        dev.printf();
-        dev.printf('  Options:');
-        dev.printf('    --scope      - Entry name in registry.json');
+        _dev.printf('Usage: dev registry [action] [options]');
+        _dev.printf();
+        _dev.printf('  Actions:');
+        _dev.printf('    list         - List all registry entries');
+        _dev.printf('    show         - Show details of a registry entry');
+        _dev.printf('    remove       - Remove a registry entry');
+        _dev.printf('    add          - Add new entries for registry');
+        _dev.printf('    get-binaries - Download and install binaries');
+        _dev.printf('    lock-update  - Update lock files');
+        _dev.printf('    lock-clean   - Remove lock files');
+        _dev.printf();
+        _dev.printf('  Options:');
+        _dev.printf('    --scope      - Entry name in registry.json');
     }
 
     /**
@@ -182,7 +187,7 @@ class Registry extends dev.DevCom {
      * @param {object} options - Command options
      */
     listAction(options) {
-        let registry = dev.getRegistry(),
+        let registry = _dev.getRegistry(),
             entries = [];
 
         for (let property in registry) {
@@ -190,13 +195,13 @@ class Registry extends dev.DevCom {
         }
 
         if (1 > entries.length) {
-            dev.printf('Registry is empty!');
-            dev.printf('Usage: dev registry add [URL] -> to add entries for registry');
+            _dev.printf('Registry is empty!');
+            _dev.printf('Usage: dev registry add [URL] -> to add entries for registry');
             return;
         }
 
-        dev.printf('Registry entries:');
-        dev.printf('  + ' + entries.join(_os.EOL + '  + '));
+        _dev.printf('Registry entries:');
+        _dev.printf('  + ' + entries.join(_os.EOL + '  + '));
     }
 
     /**
@@ -206,11 +211,11 @@ class Registry extends dev.DevCom {
      */
     showAction(options) {
         if (1 > options.args.length) {
-            throw dev.createError('Registry show usage: dev registry show [entry]');
+            throw _dev.createError('Registry show usage: dev registry show [entry]');
         }
 
         let entryName = options.args[0],
-            registry = dev.getRegistry(),
+            registry = _dev.getRegistry(),
             entry;
 
         for (let e in registry) {
@@ -221,54 +226,54 @@ class Registry extends dev.DevCom {
         }
 
         if (!entry) {
-            throw dev.createError('Registry entry "' + entryName + '" not found.');
+            throw _dev.createError('Registry entry "' + entryName + '" not found.');
         }
 
         let found = false,
             registryType = (entry.type || '').toLowerCase(),
-            urlLockFile = dev.normalizeUrl(dev.makeRegistryUrl(entry)).concat(REGISTRY_LOCKFILE),
+            urlLockFile = _dev.normalizeUrl(_dev.makeRegistryUrl(entry)).concat(REGISTRY_LOCKFILE),
             lockFileName = REGISTRY_LOCAL_LOCKFILE.replace(MAGIC_REGISTRY_LOCKNAME, entryName),
-            pathLockFile = _path.resolve(dev.devHome.root, lockFileName);
+            pathLockFile = _path.resolve(_dev.devHome.root, lockFileName);
 
         // GitHub entry
         if (registryType === 'github') {
             let urlOwner = 'https://github.com/{owner}'.replace('{owner}', entry.owner),
                 urlProject = '{ownerUrl}/{repository}'.replace('{ownerUrl}', urlOwner).replace('{repository}', entry.repository);
 
-            dev.printf('GitHub Registry [' + entryName + ']');
-            dev.printf('  Owner profile:', urlOwner);
-            dev.printf('  Project:', urlProject);
+            _dev.printf('GitHub Registry [' + entryName + ']');
+            _dev.printf('  Owner profile:', urlOwner);
+            _dev.printf('  Project:', urlProject);
 
             found = true;
         }
 
         // URL entry
         if (registryType === 'url') {
-            let url = dev.makeRegistryUrl(entry);
+            let url = _dev.makeRegistryUrl(entry);
 
-            dev.printf('URL Registry [' + entryName + ']');
-            dev.printf('  Registry URL:', url);
+            _dev.printf('URL Registry [' + entryName + ']');
+            _dev.printf('  Registry URL:', url);
 
             found = true;
         }
 
         if (!found) {
-            throw dev.createError('Invalid registry entry: ' + JSON.stringify(entry, null, 2));
+            throw _dev.createError('Invalid registry entry: ' + JSON.stringify(entry, null, 2));
         }
 
-        dev.printf('  Lock file:', urlLockFile);
-        dev.printf('  Local lock file:', pathLockFile);
+        _dev.printf('  Lock file:', urlLockFile);
+        _dev.printf('  Local lock file:', pathLockFile);
 
         if (_fs.existsSync(pathLockFile)) {
             let counts = countLockFiles(entryName);
 
-            dev.printf('  Lock file counts:');
-            dev.printf('    - Binary:        %d', counts.bin);
-            dev.printf('    - Documentation: %d', counts.doc);
-            dev.printf('    - Library:       %d', counts.lib);
-            dev.printf('    - DevCom:        %d', counts.cmd);
+            _dev.printf('  Lock file counts:');
+            _dev.printf('    - Binary:        %d', counts.bin);
+            _dev.printf('    - Documentation: %d', counts.doc);
+            _dev.printf('    - Library:       %d', counts.lib);
+            _dev.printf('    - DevCom:        %d', counts.cmd);
         } else {
-            dev.printf('  Lock file counts: *** NOT PRESENT ***');
+            _dev.printf('  Lock file counts: *** NOT PRESENT ***');
         }
     }
 
@@ -279,11 +284,11 @@ class Registry extends dev.DevCom {
      */
     removeAction(options) {
         if (1 > options.args.length) {
-            throw dev.createError('Registry remove usage: dev registry remove [entry]');
+            throw _dev.createError('Registry remove usage: dev registry remove [entry]');
         }
 
         let entryName = options.args[0],
-            registry = dev.getRegistry(),
+            registry = _dev.getRegistry(),
             found = false;
 
         for (let e in registry) {
@@ -295,12 +300,12 @@ class Registry extends dev.DevCom {
         }
 
         if (!found) {
-            throw dev.createError('Registry entry "' + entryName + '" not found.');
+            throw _dev.createError('Registry entry "' + entryName + '" not found.');
         }
 
         writeRegistry(registry);
 
-        dev.printf('Registry entry "' + entryName + '" successfully removed.');
+        _dev.printf('Registry entry "' + entryName + '" successfully removed.');
     }
 
     /**
@@ -311,7 +316,7 @@ class Registry extends dev.DevCom {
      */
     addAction(options) {
         if (1 > options.args.length) {
-            throw dev.createError('Registry add usage: dev registry add [url]');
+            throw _dev.createError('Registry add usage: dev registry add [url]');
         }
 
         let url = _url.parse(options.args[0]),
@@ -319,7 +324,7 @@ class Registry extends dev.DevCom {
             urlValidPath = url.path.endsWith(REGISTRY_FILE);
 
         if (!url.host || !urlValidProtocol || !urlValidPath) {
-            throw dev.createError('Invalid URL value: ' + options.args[0]);
+            throw _dev.createError('Invalid URL value: ' + options.args[0]);
         }
 
         let _crypto = require('crypto'),
@@ -329,24 +334,24 @@ class Registry extends dev.DevCom {
             _fs.unlinkSync(tmpFilePath);
         }
 
-        dev.downloadSync(url.href, tmpFilePath);
+        _dev.downloadSync(url.href, tmpFilePath);
 
         if (!_fs.existsSync(tmpFilePath)) {
-            throw dev.createError('Registry "' + url.href + '" not found.');
+            throw _dev.createError('Registry "' + url.href + '" not found.');
         }
 
-        let registry = dev.getRegistry(),
+        let registry = _dev.getRegistry(),
             registryUpdate = require(tmpFilePath);
 
         if (typeof registryUpdate !== 'object') {
-            throw dev.createError('Invalid content type of web registry.');
+            throw _dev.createError('Invalid content type of web registry.');
         }
 
         for (let p in registryUpdate) {
             let entry = registryUpdate[p];
 
             if (typeof entry !== 'object') {
-                throw dev.createError('Invalid content type of web registry.');
+                throw _dev.createError('Invalid content type of web registry.');
             }
 
             registry[p] = entry;
@@ -356,7 +361,7 @@ class Registry extends dev.DevCom {
 
         writeRegistry(registry);
 
-        dev.printf('Registry entries updated!');
+        _dev.printf('Registry entries updated!');
     }
 
     /**
@@ -365,7 +370,7 @@ class Registry extends dev.DevCom {
      * @param {object} options - Command options
      */
     getBinariesAction(options) {
-        let registry = dev.getRegistry(),
+        let registry = _dev.getRegistry(),
             scopes = Object.getOwnPropertyNames(registry),
             binaryBuffer = [];
 
@@ -374,23 +379,23 @@ class Registry extends dev.DevCom {
                 scope = registry[scopeName];
 
             if (!options.scope || options.scope === scopeName) {
-                let lock = dev.getRegistryLock(scopeName),
+                let lock = _dev.getRegistryLock(scopeName),
                     lockBinary = getBinaryLockFiles(lock),
-                    scopeUrl = dev.makeRegistryUrl(scope);
+                    scopeUrl = _dev.makeRegistryUrl(scope);
 
                 lockBinary.map((sufix) => {
-                    let url = dev.normalizeUrl(scopeUrl) + sufix;
+                    let url = _dev.normalizeUrl(scopeUrl) + sufix;
                     binaryBuffer.push({ url: url, path: sufix });
                 });
 
                 continue;
             }
 
-            dev.logger.debug('Skeep scope "' + scope + '"...');
+            _dev.logger.debug('Skeep scope "' + scope + '"...');
         }
 
         if (1 > binaryBuffer.length) {
-            dev.printf('No binary found!');
+            _dev.printf('No binary found!');
             return;
         }
 
@@ -399,20 +404,67 @@ class Registry extends dev.DevCom {
                 binary.path = binary.path.substring('/bin'.length);
             }
 
-            binary.path = _path.resolve(dev.devHome.bin, binary.path);
-            
+            binary.path = _path.resolve(_dev.devHome.bin, binary.path);
+
             // Convert `file.sh` to `file`
             let extIdx = binary.path.lastIndexOf('.sh');
             if (-1 < extIdx) binary.path = binary.path.slice(0, extIdx);
 
-            dev.downloadSync(binary.url, binary.path);
-            
+            _dev.downloadSync(binary.url, binary.path);
+
             // Set executable flag for *nix
             if (_os.platform() !== 'win32') _fs.chmodSync(binary.path, '750');
         });
 
-        dev.printf('%d binary successfully installed.', binaryBuffer.length);
+        _dev.printf('%d binary successfully installed.', binaryBuffer.length);
+    }
+
+    /**
+     * Update/replace all lock files
+     *
+     * @param {object} options - Command options 
+     */
+    lockUpdateAction(options) {
+        for (let property in _dev.getRegistry()) {
+            let r = _dev.getRegistryLock(property, true, { quiet: true });
+            _dev.printf('*', property, '[UPDATED]');
+
+            if (!!options.v || typeof options.verbose !== UNDEFINED) {
+                _dev.printf(JSON.stringify(r, null, 2));
+            }
+        }
+    }
+
+    /**
+     * Remove all lock files
+     * 
+     * @param {object} options - Command options
+     */
+    lockCleanAction(options) {
+        for (let property in _dev.getRegistry()) {
+            let path = _dev.makeRegistryLockFilePath(property);
+            if (_dev.fileExists(path)) {
+                _fs.unlinkSync(path);
+            }
+            _dev.printf('*', property, '[REMOVED]');
+        }
     }
 }
 
 module.exports = new Registry();
+
+// Run Registry DevCom on developer instance
+if (!module.parent && module.filename === __filename) {
+    let _devTool = _dev.devToolDefaultInstance,
+        _devCom = module.exports,
+        _options = _dev.parseOptions(process.argv.slice(2));
+
+    try {
+        _devCom.run(_devTool, _options);
+    } catch (error) {
+        _dev.logger.error(error);
+        _devTool.exitCode = error.code || 1;
+    }
+
+    _devTool.exit();
+}

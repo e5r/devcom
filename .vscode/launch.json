@@ -12,17 +12,63 @@
 				"C:\\Users\\erlimar\\00-e5r-dev-init-test",
 				"e5r/empty-project@develop",
 				"-D"
-				],
+			],
 			"cwd": "${workspaceRoot}",
 			"runtimeExecutable": null,
 			"runtimeArgs": [
 				"--nolazy",
-                "--use_strict"
+				"--use_strict"
 			],
 			"env": {
 				"NODE_ENV": "development",
-                "NODE_DEBUG": "E5RDEV",
-                "DEVCOM_MODE": "DEVELOPMENT"
+				"NODE_DEBUG": "E5RDEV",
+				"DEVCOM_MODE": "DEVELOPMENT"
+			},
+			"externalConsole": false,
+			"sourceMaps": false,
+			"outDir": null
+		},
+		{
+			"name": "dev registry",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceRoot}/src/lib/cmd/registry.js",
+			"stopOnEntry": false,
+			"args": [
+				"lock-clean"
+			],
+			"cwd": "${workspaceRoot}",
+			"runtimeExecutable": null,
+			"runtimeArgs": [
+				"--nolazy",
+				"--use_strict"
+			],
+			"env": {
+				"NODE_ENV": "development",
+				"NODE_DEBUG": "E5RDEV",
+				"DEVCOM_MODE": "DEVELOPMENT"
+			},
+			"externalConsole": false,
+			"sourceMaps": false,
+			"outDir": null
+		},
+		{
+			"name": "dev env",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceRoot}/src/lib/cmd/env.js",
+			"stopOnEntry": false,
+			"args": [],
+			"cwd": "${workspaceRoot}",
+			"runtimeExecutable": null,
+			"runtimeArgs": [
+				"--nolazy",
+				"--use_strict"
+			],
+			"env": {
+				"NODE_ENV": "development",
+				"NODE_DEBUG": "E5RDEV",
+				"DEVCOM_MODE": "DEVELOPMENT"
 			},
 			"externalConsole": false,
 			"sourceMaps": false,

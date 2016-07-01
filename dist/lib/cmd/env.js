@@ -4,7 +4,7 @@
 /* global process, __filename, __dirname */
 "use strict";
 
-let dev = require('e5r-dev');
+let _dev = require('e5r-dev');
 
 /** @constant {object} */
 const ALIAS = {
@@ -48,7 +48,7 @@ function ensureAction(action) {
  * 
  * Manage coder environment for E5R Tools for Development Team
  */
-class Environment extends dev.DevCom {
+class Environment extends _dev.DevCom {
     
     /**
      * Run the `env` devcom
@@ -57,8 +57,8 @@ class Environment extends dev.DevCom {
      * @param {object} options - Options for arguments of command
      */
     run(devTool, options) {
-        if ((process.env['DEVCOM_MODE'] || '').toUpperCase() !== 'DEVELOPMENT' && !(devTool instanceof dev.DevTool)) {
-            throw dev.createError('Env should be performed only via DEV command.');
+        if ((process.env['DEVCOM_MODE'] || '').toUpperCase() !== 'DEVELOPMENT' && !(devTool instanceof _dev.DevTool)) {
+            throw _dev.createError('Env should be performed only via DEV command.');
         }
 
         if (!options || !Array.isArray(options.args) || 2 > options.args.length) {
@@ -74,11 +74,11 @@ class Environment extends dev.DevCom {
             return;
         }
         
-        let envLib = dev.require('lib://env/' + env),
+        let envLib = _dev.require('lib://env/' + env),
             actionFn = envLib[action];
         
         if (typeof (actionFn) != 'function') {
-            throw dev.createError('Environment '
+            throw _dev.createError('Environment '
                 + env.toUpperCase() + ' does not support the '
                 + action.toUpperCase() + ' action.');
         }
@@ -91,21 +91,37 @@ class Environment extends dev.DevCom {
      */
     usage() {
         /** @todo: See `php.js` ensuresVersion() */
-        dev.printf('Usage: dev env <action> <name> [options]');
-        dev.printf();
-        dev.printf('Actions:');
+        _dev.printf('Usage: dev env <action> <name> [options]');
+        _dev.printf();
+        _dev.printf('Actions:');
 
         for (let name in ALIAS) {
             let space = '                 ';
             let printName = name + space.substring(name.length, space.length - 1);
-            dev.printf('  ' + printName, '-', ALIAS[name].doc);
+            _dev.printf('  ' + printName, '-', ALIAS[name].doc);
         }
 
-        dev.printf();
-        dev.printf('Options:');
-        dev.printf('  --version    - Version of environment');
-        dev.printf();
+        _dev.printf();
+        _dev.printf('Options:');
+        _dev.printf('  --version    - Version of environment');
+        _dev.printf();
     }
 }
 
 module.exports = new Environment();
+
+// Run Env DevCom on developer instance
+if (!module.parent && module.filename === __filename) {
+    let _devTool = _dev.devToolDefaultInstance,
+        _devCom = module.exports,
+        _options = _dev.parseOptions(process.argv.slice(2));
+
+    try {
+        _devCom.run(_devTool, _options);
+    } catch (error) {
+        _dev.logger.error(error);
+        _devTool.exitCode = error.code || 1;
+    }
+
+    _devTool.exit();
+}
