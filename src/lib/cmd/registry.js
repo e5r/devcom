@@ -426,8 +426,10 @@ class Registry extends _dev.DevCom {
      */
     lockUpdateAction(options) {
         for (let property in _dev.getRegistry()) {
-            let registry = _dev.getRegistryLock(property, true, { quiet: true });
-            _dev.printf('*', property, '[UPDATED]');
+            let registry = _dev.getRegistryLock(property, true, { quiet: true }),
+                path = _dev.makeRegistryLockFilePath(property);
+
+            _dev.printf('*', _path.basename(path), '[UPDATED]');
 
             if (!!options.v || typeof options.verbose !== UNDEFINED) {
                 _dev.printf(JSON.stringify(registry, null, 2));
