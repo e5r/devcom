@@ -32,7 +32,8 @@
 			"program": "${workspaceRoot}/src/lib/cmd/registry.js",
 			"stopOnEntry": false,
 			"args": [
-				"lock-clean"
+				"lock-clean",
+				"--verbose"
 			],
 			"cwd": "${workspaceRoot}",
 			"runtimeExecutable": null,

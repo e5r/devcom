@@ -426,11 +426,11 @@ class Registry extends _dev.DevCom {
      */
     lockUpdateAction(options) {
         for (let property in _dev.getRegistry()) {
-            let r = _dev.getRegistryLock(property, true, { quiet: true });
+            let registry = _dev.getRegistryLock(property, true, { quiet: true });
             _dev.printf('*', property, '[UPDATED]');
 
             if (!!options.v || typeof options.verbose !== UNDEFINED) {
-                _dev.printf(JSON.stringify(r, null, 2));
+                _dev.printf(JSON.stringify(registry, null, 2));
             }
         }
     }
@@ -442,11 +442,30 @@ class Registry extends _dev.DevCom {
      */
     lockCleanAction(options) {
         for (let property in _dev.getRegistry()) {
-            let path = _dev.makeRegistryLockFilePath(property);
+            let registry = _dev.getRegistryLock(property, true, { quiet: true }),
+                path = _dev.makeRegistryLockFilePath(property);
+
+            // Removing lock file
             if (_dev.fileExists(path)) {
                 _fs.unlinkSync(path);
             }
-            _dev.printf('*', property, '[REMOVED]');
+            _dev.printf('*', _path.basename(path), '[REMOVED]');
+
+            // Removing content files
+            for (let r in registry) {
+                let reg = registry[r],
+                    filePath = _path.join(_dev.devHome.root, reg);
+
+                if (reg.startsWith('bin/')) continue;
+
+                if (_dev.fileExists(filePath)) {
+                    _fs.unlinkSync(filePath);
+                    if (!!options.v || typeof options.verbose !== UNDEFINED) {
+                        _dev.printf('-', registry[r], '[REMOVED]');
+                    }
+                }
+
+            }
         }
     }
 }
