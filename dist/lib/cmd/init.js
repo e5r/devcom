@@ -67,7 +67,7 @@ class Init extends _dev.DevCom {
         }
 
         // Up exception if --workdir is not empty
-        if (!_dev.directoryIsEmpty(workdir)) {
+        if (!_dev.directoryIsEmpty(workdir, ['.git'])) {
             throw _dev.createError('Directory [' + workdir + '] is not empty.');
         }
 
