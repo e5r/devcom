@@ -111,7 +111,7 @@ function getBinaryLockFiles(lockFiles) {
 
     let buffer = [],
         binExt = {
-            "darwin": [],
+            "darwin": ['.sh'],
             "freebsd": [],
             "linux": ['.sh'],
             "sunos": [],
