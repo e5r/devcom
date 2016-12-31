@@ -3,10 +3,10 @@
 # Copyright (c) E5R Development Team. All rights reserved.
 # Licensed under the Apache License, Version 2.0. More license information in LICENSE.txt.
 
-localdir="`dirname \`readlink -f "${0}"\``"
-jsengine="${localdir}/../tools/jsengine"
-devscript="${localdir}/../lib/node_modules/e5r-dev.js"
-postfile="${localdir}/../tools/dev-envvars.sh"
+localdir="${HOME}/.dev"
+jsengine="${localdir}/tools/jsengine"
+devscript="${localdir}/lib/node_modules/e5r-dev.js"
+postfile="${localdir}/tools/dev-envvars.sh"
 
 if [ ! -f ${jsengine} ]; then
     echo "${jsengine} not found!"
