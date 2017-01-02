@@ -42,7 +42,7 @@ class Init extends _dev.DevCom {
             options.args.push(TEMPLATE_DEFAULT);
         }
 
-        if (options.hasOwnProperty('help') || ptions.hasOwnProperty('h')) {
+        if (options.hasOwnProperty('help') || options.hasOwnProperty('h')) {
             this.help(devTool);
             return;
         }
