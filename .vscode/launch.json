@@ -8,7 +8,8 @@
 			"program": "${workspaceRoot}/src/lib/cmd/init.js",
 			"stopOnEntry": false,
 			"args": [
-				"-D"
+				"-D",
+				"--help"
 			],
 			"cwd": "${workspaceRoot}",
 			"runtimeExecutable": null,
@@ -71,12 +72,6 @@
 			"externalConsole": false,
 			"sourceMaps": false,
 			"outDir": null
-		},
-		{
-			"name": "Attach",
-			"type": "node",
-			"request": "attach",
-			"port": 5858
 		}
 	]
 }

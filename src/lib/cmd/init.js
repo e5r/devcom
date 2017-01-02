@@ -42,6 +42,11 @@ class Init extends _dev.DevCom {
             options.args.push(TEMPLATE_DEFAULT);
         }
 
+        if (options.hasOwnProperty('help') || ptions.hasOwnProperty('h')) {
+            this.help(devTool);
+            return;
+        }
+
         // Check parameter [0] format. githubuser/repository@version
         // - @version is optional, default is master
         if (!options || !Array.isArray(options.args) || 1 > options.args.length) {
@@ -468,6 +473,21 @@ class Init extends _dev.DevCom {
         }
 
         return results;
+    }
+
+    /**
+     * Show help information for DevCom
+     * 
+     * @param {object} devTool - Instance of DevToolCommandLine
+     */
+    help(devTool) {
+        _dev.printf('DevCom INIT');
+        _dev.printf('');
+        _dev.printf('Fill a directory with a default structure for a new project');
+        _dev.printf('of a E5R Development Team.');
+        _dev.printf('');
+
+        this.usage(devTool);
     }
 
     /**
