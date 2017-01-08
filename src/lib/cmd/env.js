@@ -4,10 +4,15 @@
 /* global process, __filename, __dirname */
 "use strict";
 
-let _dev = require('e5r-dev');
+let _dev = require('e5r-dev'),
+    _path = require('path');
 
 /** @constant {object} */
 const ALIAS = {
+    'boot': {
+        'alias': ['b', 'bt'],
+        'doc': 'Initialize project environment'
+    },
     'install': {
         'alias': ['i', 'in'],
         'doc': 'Install a new version'
@@ -20,13 +25,13 @@ const ALIAS = {
         'alias': ['l', 'li'],
         'doc': 'List all installed versions'
     },
-    'activate': {
-        'alias': ['a', 'ac'],
-        'doc': 'Activate a version to use in shell'
+    'select': {
+        'alias': ['s', 'sl'],
+        'doc': 'Select a version to use in shell'
     },
-    'deactivate': {
-        'alias': ['d', 'de'],
-        'doc': 'Deactivate a version'
+    'test': {
+        'alias': ['t', 'ts'],
+        'doc': 'Checks if the version is installed'
     }
 };
 
@@ -36,10 +41,19 @@ const ALIAS = {
  * @param {string} action - Name or alias of action
  */
 function ensureAction(action) {
+
+    let actionName = action;
+
     for (let name in ALIAS) {
-        if (name === action) return action;
-        if (-1 < ALIAS[name].alias.indexOf(action)) return name;
+        if (name === action) break;
+
+        if (-1 < ALIAS[name].alias.indexOf(action)) {
+            actionName = name;
+            break;
+        }
     }
+
+    return _dev.makeCamelCaseName(actionName);
 }
 
 /**
@@ -49,7 +63,7 @@ function ensureAction(action) {
  * Manage coder environment for E5R Tools for Development Team
  */
 class Environment extends _dev.DevCom {
-    
+
     /**
      * Run the `env` devcom
      * 
@@ -68,24 +82,129 @@ class Environment extends _dev.DevCom {
 
         let action = ensureAction(options.args.shift()),
             env = options.args.shift();
-            
+
         if (!action) {
             this.usage();
             return;
         }
-        
-        let envLib = _dev.require('lib://env/' + env),
-            actionFn = envLib[action];
-        
+
+        let envLib;
+
+        if (options.d && (process.env['DEVCOM_MODE'] || '').toUpperCase() === 'DEVELOPMENT') {
+            let devModulePath = _path.join(process.cwd(), './src/lib/env/' + env);
+            envLib = require(devModulePath);
+        } else {
+            envLib = _dev.require('lib://env/' + env);
+        }
+
+        if (ALIAS[action]) {
+            this.runEnvCommonEngine(envLib, action, devTool, options);
+            return;
+        }
+
+        let actionFn = envLib[action + 'Action'];
+
         if (typeof (actionFn) != 'function') {
             throw _dev.createError('Environment '
                 + env.toUpperCase() + ' does not support the '
                 + action.toUpperCase() + ' action.');
         }
-        
-        actionFn.bind(envLib)(devTool, options);
+
+        this.runEnvEngine(envLib, actionFn, devTool, options);
     }
-    
+
+    /**
+     * Run the common environment action logic
+     * 
+     * @param {object} engine - The environment engine
+     * @param {string} actionName - The action name
+     * @param {object} devTool - Instance of DevToolCommandLine
+     * @param {object} options - Options for arguments of command
+     */
+    runEnvCommonEngine(engine, actionName, devTool, options) {
+        let actionFn = this[actionName + 'CommonAction'];
+
+        if (typeof (actionFn) != 'function') {
+            throw _dev.createError('Environment '
+                + env.toUpperCase() + ' does not support the '
+                + action.toUpperCase() + ' common action.');
+        }
+
+        actionFn.bind(this)(devTool, options);
+    }
+
+    /**
+     * Run the environment action logic on specific engine
+     * 
+     * @param {object} engine - The environment engine
+     * @param {function} fn - The engine function
+     * @param {object} devTool - Instance of DevToolCommandLine
+     * @param {object} options - Options for arguments of command
+     */
+    runEnvEngine(engine, fn, devTool, options) {
+        fn.bind(engine)(devTool, options);
+    }
+
+    /**
+     * Boot `env boot ...` common action
+     * 
+     * @param {object} devTool - Instance of DevToolCommandLine
+     * @param {object} options - Options for arguments of command
+     */
+    bootCommonAction(devTool, options) {
+        throw 'Not implemented [bootCommonAction]';
+    }
+
+    /**
+     * Install `env install ...` common action
+     * 
+     * @param {object} devTool - Instance of DevToolCommandLine
+     * @param {object} options - Options for arguments of command
+     */
+    installCommonAction(devTool, options) {
+        throw 'Not implemented [bootCommonAction]';
+    }
+
+    /**
+     * Uninstall `env uninstall ...` common action
+     * 
+     * @param {object} devTool - Instance of DevToolCommandLine
+     * @param {object} options - Options for arguments of command
+     */
+    uninstallCommonAction(devTool, options) {
+        throw 'Not implemented [bootCommonAction]';
+    }
+
+    /**
+     * List `env list ...` common action
+     * 
+     * @param {object} devTool - Instance of DevToolCommandLine
+     * @param {object} options - Options for arguments of command
+     */
+    listCommonAction(devTool, options) {
+        throw 'Not implemented [bootCommonAction]';
+    }
+
+    /**
+     * Select `env select ...` common action
+     * 
+     * @param {object} devTool - Instance of DevToolCommandLine
+     * @param {object} options - Options for arguments of command
+     */
+    selectCommonAction(devTool, options) {
+        throw 'Not implemented [bootCommonAction]';
+    }
+
+    /**
+     * Test `env test ...` common action
+     * 
+     * @param {object} devTool - Instance of DevToolCommandLine
+     * @param {object} options - Options for arguments of command
+     */
+    testCommonAction(devTool, options) {
+        throw 'Not implemented [bootCommonAction]';
+    }
+
     /**
      * Show usage information for DevCom
      */

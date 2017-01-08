@@ -57,7 +57,11 @@
 			"request": "launch",
 			"program": "${workspaceRoot}/src/lib/cmd/env.js",
 			"stopOnEntry": false,
-			"args": [],
+			"args": [
+				"-D",
+				"install",
+				"node"
+			],
 			"cwd": "${workspaceRoot}",
 			"runtimeExecutable": null,
 			"runtimeArgs": [
