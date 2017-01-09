@@ -292,7 +292,7 @@ class Init extends _dev.DevCom {
      * @param {object} options - Options for arguments of command
      */
     runWizard(context, options) {
-        if (!options.d) {
+        if (!options.devmode) {
             this.showWelcomeMessage(context.defWizard, options);
         }
         this.addProperties(context, options);
@@ -330,7 +330,7 @@ class Init extends _dev.DevCom {
                 defaultValue = this.expandString(p.default || '', context).value,
                 value = defaultValue;
 
-            if (!toolOptions.d) {
+            if (!toolOptions.devmode) {
 
                 let options = (p.options || []),
                     optionsText = options.length > 0
@@ -514,7 +514,7 @@ module.exports = new Init();
 if (!module.parent && module.filename === __filename) {
     let _devTool = _dev.devToolDefaultInstance,
         _devCom = module.exports,
-        _options = _dev.parseOptions(process.argv.slice(2));
+        _options = _devTool._options;
 
     try {
         _devCom.run(_devTool, _options);

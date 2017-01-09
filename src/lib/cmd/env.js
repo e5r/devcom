@@ -90,7 +90,7 @@ class Environment extends _dev.DevCom {
 
         let envLib;
 
-        if (options.d && (process.env['DEVCOM_MODE'] || '').toUpperCase() === 'DEVELOPMENT') {
+        if (options.devmode && (process.env['DEVCOM_MODE'] || '').toUpperCase() === 'DEVELOPMENT') {
             let devModulePath = _path.join(process.cwd(), './src/lib/env/' + env);
             envLib = require(devModulePath);
         } else {
@@ -162,7 +162,7 @@ class Environment extends _dev.DevCom {
      * @param {object} options - Options for arguments of command
      */
     installCommonAction(devTool, options) {
-        throw 'Not implemented [bootCommonAction]';
+        throw 'Not implemented [installCommonAction]';
     }
 
     /**
@@ -172,7 +172,7 @@ class Environment extends _dev.DevCom {
      * @param {object} options - Options for arguments of command
      */
     uninstallCommonAction(devTool, options) {
-        throw 'Not implemented [bootCommonAction]';
+        throw 'Not implemented [uninstallCommonAction]';
     }
 
     /**
@@ -182,7 +182,7 @@ class Environment extends _dev.DevCom {
      * @param {object} options - Options for arguments of command
      */
     listCommonAction(devTool, options) {
-        throw 'Not implemented [bootCommonAction]';
+        throw 'Not implemented [listCommonAction]';
     }
 
     /**
@@ -192,7 +192,7 @@ class Environment extends _dev.DevCom {
      * @param {object} options - Options for arguments of command
      */
     selectCommonAction(devTool, options) {
-        throw 'Not implemented [bootCommonAction]';
+        throw 'Not implemented [selectCommonAction]';
     }
 
     /**
@@ -202,7 +202,7 @@ class Environment extends _dev.DevCom {
      * @param {object} options - Options for arguments of command
      */
     testCommonAction(devTool, options) {
-        throw 'Not implemented [bootCommonAction]';
+        throw 'Not implemented [testCommonAction]';
     }
 
     /**
@@ -233,7 +233,7 @@ module.exports = new Environment();
 if (!module.parent && module.filename === __filename) {
     let _devTool = _dev.devToolDefaultInstance,
         _devCom = module.exports,
-        _options = _dev.parseOptions(process.argv.slice(2));
+        _options = _devTool._options;
 
     try {
         _devCom.run(_devTool, _options);

@@ -8,7 +8,8 @@
 			"program": "${workspaceRoot}/src/lib/cmd/init.js",
 			"stopOnEntry": false,
 			"args": [
-				"-D",
+				"-devmode",
+				"init",
 				"--help"
 			],
 			"cwd": "${workspaceRoot}",
@@ -33,6 +34,8 @@
 			"program": "${workspaceRoot}/src/lib/cmd/registry.js",
 			"stopOnEntry": false,
 			"args": [
+				"-devmode",
+				"registry",
 				"lock-update",
 				"--verbose"
 			],
@@ -58,7 +61,8 @@
 			"program": "${workspaceRoot}/src/lib/cmd/env.js",
 			"stopOnEntry": false,
 			"args": [
-				"-D",
+				"-devmode",
+				"env",
 				"install",
 				"node"
 			],
