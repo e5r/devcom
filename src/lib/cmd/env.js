@@ -5,7 +5,11 @@
 "use strict";
 
 let _dev = require('e5r-dev'),
-    _path = require('path');
+    _path = require('path'),
+    _fs = require('fs');
+
+/** @constant {string} */
+const CACHE_FOLDER = 'cache';
 
 /** @constant {object} */
 const ALIAS = {
@@ -57,6 +61,67 @@ function ensureAction(action) {
 }
 
 /**
+ * Load a version cache information
+ * 
+ * @param {string} envName - Environment name
+ * 
+ * @return {object} Or null if file not exists or expired
+ */
+function loadVersionCacheInfo(envName) {
+    const EXPIRES_CONFIG_KEY = 'e5r.cmd.env.cache.versionInfoExpires';
+
+    // In seconds. Default 24h: 60 * 60 * 24 => 86.400
+    const DEFAULT_VERSIONINFO_EXPIRES = 86400;
+
+    let cacheDirPath = _path.join(_dev.devHome.root, CACHE_FOLDER, 'env'),
+        versionInfoFileName = '{env}-versions.cache.json'.replace('{env}', envName),
+        versionInfoFilePath = _path.join(cacheDirPath, versionInfoFileName);
+
+    if (!_dev.directoryExists(cacheDirPath)) {
+        _dev.mkdir(cacheDirPath);
+    }
+
+    if (!_dev.fileExists(versionInfoFilePath)) {
+        return null;
+    }
+
+    let versionInfoExpires = _dev.getConfiguration(EXPIRES_CONFIG_KEY, DEFAULT_VERSIONINFO_EXPIRES),
+        fileTime = _fs.statSync(versionInfoFilePath).mtime.getTime(),
+        now = new Date(),
+        limitOldTime = now.getTime() - (versionInfoExpires * 1000);
+
+    if (fileTime < limitOldTime) {
+        return null;
+    }
+
+    let fileContent = require(versionInfoFilePath);
+
+    return fileContent;
+}
+
+/**
+ * Save a version cache information data
+ * 
+ * @param {string} envName - Environment name
+ * @param {object} cache - Cache data
+ * 
+ * @return {object} Saved content
+ */
+function saveVersionCacheInfo(envName, cache) {
+    let cacheDirPath = _path.join(_dev.devHome.root, CACHE_FOLDER, 'env'),
+        versionInfoFileName = '{env}-versions.cache.json'.replace('{env}', envName),
+        versionInfoFilePath = _path.join(cacheDirPath, versionInfoFileName);
+
+    if (!_dev.directoryExists(cacheDirPath)) {
+        _dev.mkdir(cacheDirPath);
+    }
+
+    _fs.writeFileSync(versionInfoFilePath, JSON.stringify(cache || {}, null, 4), 'utf8');
+
+    return require(versionInfoFilePath);
+}
+
+/**
  * DevCom `env` command
  * @class
  * 
@@ -97,20 +162,17 @@ class Environment extends _dev.DevCom {
             envLib = _dev.require('lib://env/' + env);
         }
 
+        if (envLib.name !== env) {
+            throw _dev.createError(env.toUpperCase()
+                + ' environment with invalid name.');
+        }
+
         if (ALIAS[action]) {
             this.runEnvCommonEngine(envLib, action, devTool, options);
             return;
         }
 
-        let actionFn = envLib[action + 'Action'];
-
-        if (typeof (actionFn) != 'function') {
-            throw _dev.createError('Environment '
-                + env.toUpperCase() + ' does not support the '
-                + action.toUpperCase() + ' action.');
-        }
-
-        this.runEnvEngine(envLib, actionFn, devTool, options);
+        this.runEnvEngine(envLib, action, devTool, options);
     }
 
     /**
@@ -126,82 +188,117 @@ class Environment extends _dev.DevCom {
 
         if (typeof (actionFn) != 'function') {
             throw _dev.createError('Environment '
-                + env.toUpperCase() + ' does not support the '
-                + action.toUpperCase() + ' common action.');
+                + engine.name.toUpperCase() + ' does not support the '
+                + actionName.toUpperCase() + ' common action.');
         }
 
-        actionFn.bind(this)(devTool, options);
+        actionFn.bind(this)(engine, devTool, options);
     }
 
     /**
      * Run the environment action logic on specific engine
      * 
      * @param {object} engine - The environment engine
-     * @param {function} fn - The engine function
+     * @param {string} actionName - The action name
      * @param {object} devTool - Instance of DevToolCommandLine
      * @param {object} options - Options for arguments of command
      */
-    runEnvEngine(engine, fn, devTool, options) {
-        fn.bind(engine)(devTool, options);
+    runEnvEngine(engine, actionName, devTool, options) {
+        let actionFn = engine[actionName + 'Action'];
+
+        if (typeof (actionFn) != 'function') {
+            throw _dev.createError('Environment '
+                + engine.name.toUpperCase() + ' does not support the '
+                + actionName.toUpperCase() + ' action.');
+        }
+
+        let initFn = engine['init'];
+
+        if (typeof (initFn) != 'function') {
+            throw _dev.createError('Environment '
+                + engine.name.toUpperCase() + ' does not implements init() method.');
+        }
+
+        initFn.bind(engine)(devTool, options);
+        actionFn.bind(engine)();
     }
 
     /**
      * Boot `env boot ...` common action
      * 
+     * @param {object} engine - The environment engine
      * @param {object} devTool - Instance of DevToolCommandLine
      * @param {object} options - Options for arguments of command
      */
-    bootCommonAction(devTool, options) {
+    bootCommonAction(engine, devTool, options) {
         throw 'Not implemented [bootCommonAction]';
     }
 
     /**
      * Install `env install ...` common action
      * 
+     * @param {object} engine - The environment engine
      * @param {object} devTool - Instance of DevToolCommandLine
      * @param {object} options - Options for arguments of command
      */
-    installCommonAction(devTool, options) {
+    installCommonAction(engine, devTool, options) {
+        let versionCacheInfo = loadVersionCacheInfo(engine.name);
+
+        if (!versionCacheInfo) {
+            let getVersionsFn = engine['getVersions'];
+
+            if (typeof (getVersionsFn) != 'function') {
+                throw _dev.createError('Environment '
+                    + engine.name.toUpperCase() + ' does not implements getVersions() method.');
+            }
+
+            versionCacheInfo = saveVersionCacheInfo(engine.name, getVersionsFn.bind(engine)());
+        }
+
         throw 'Not implemented [installCommonAction]';
     }
 
     /**
      * Uninstall `env uninstall ...` common action
      * 
+     * @param {object} engine - The environment engine
      * @param {object} devTool - Instance of DevToolCommandLine
      * @param {object} options - Options for arguments of command
      */
-    uninstallCommonAction(devTool, options) {
+    uninstallCommonAction(engine, devTool, options) {
         throw 'Not implemented [uninstallCommonAction]';
     }
 
     /**
      * List `env list ...` common action
      * 
+     * @param {object} engine - The environment engine
      * @param {object} devTool - Instance of DevToolCommandLine
      * @param {object} options - Options for arguments of command
      */
-    listCommonAction(devTool, options) {
+    listCommonAction(engine, devTool, options) {
         throw 'Not implemented [listCommonAction]';
     }
 
     /**
      * Select `env select ...` common action
      * 
+     * @param {object} engine - The environment engine
      * @param {object} devTool - Instance of DevToolCommandLine
      * @param {object} options - Options for arguments of command
      */
-    selectCommonAction(devTool, options) {
+    selectCommonAction(engine, devTool, options) {
         throw 'Not implemented [selectCommonAction]';
     }
 
     /**
      * Test `env test ...` common action
      * 
+     * @param {object} engine - The environment engine
      * @param {object} devTool - Instance of DevToolCommandLine
      * @param {object} options - Options for arguments of command
      */
-    testCommonAction(devTool, options) {
+    testCommonAction(engine, devTool, options) {
         throw 'Not implemented [testCommonAction]';
     }
 
