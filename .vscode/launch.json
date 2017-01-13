@@ -64,7 +64,8 @@
 				"-devmode",
 				"env",
 				"install",
-				"node"
+				"node",
+				"latest"
 			],
 			"cwd": "${workspaceRoot}",
 			"runtimeExecutable": null,
