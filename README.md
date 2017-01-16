@@ -1,18 +1,4 @@
 DEVCOM
 =======
 
-E5R Development Commands Oficial Registry
-
-## Windows build
-
-```
-npm install
-make dist
-```
-
-## Unix build
-
-```
-npm install
-./make dist
-```
+`!deprecated:` Moved and `meged` with [dev project](https://github.com/e5r/dev).

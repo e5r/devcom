@@ -478,7 +478,7 @@ module.exports = new Registry();
 if (!module.parent && module.filename === __filename) {
     let _devTool = _dev.devToolDefaultInstance,
         _devCom = module.exports,
-        _options = _dev.parseOptions(process.argv.slice(2));
+        _options = _devTool._options;
 
     try {
         _devCom.run(_devTool, _options);
